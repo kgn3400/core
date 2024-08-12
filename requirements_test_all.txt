@@ -4,7 +4,7 @@
 -r requirements_test.txt
 
 # homeassistant.components.aemet
-AEMET-OpenData==0.5.3
+AEMET-OpenData==0.5.4
 
 # homeassistant.components.honeywell
 AIOSomecomfort==0.0.25
@@ -164,7 +164,7 @@ aio-georss-gdacs==0.9
 aioairq==0.3.2
 
 # homeassistant.components.airzone_cloud
-aioairzone-cloud==0.6.1
+aioairzone-cloud==0.6.2
 
 # homeassistant.components.airzone
 aioairzone==0.8.1
@@ -317,7 +317,7 @@ aiopvpc==4.2.2
 aiopyarr==23.4.0
 
 # homeassistant.components.qnap_qsw
-aioqsw==0.4.0
+aioqsw==0.4.1
 
 # homeassistant.components.rainforest_raven
 aioraven==0.7.0
@@ -356,7 +356,7 @@ aiosolaredge==0.2.0
 aiosteamist==1.0.0
 
 # homeassistant.components.switcher_kis
-aioswitcher==4.0.0
+aioswitcher==4.0.1
 
 # homeassistant.components.syncthing
 aiosyncthing==0.5.1
@@ -1726,7 +1726,7 @@ pyrympro==0.0.8
 pysabnzbd==1.1.1
 
 # homeassistant.components.schlage
-pyschlage==2024.6.0
+pyschlage==2024.8.0
 
 # homeassistant.components.sensibo
 pysensibo==1.0.36
