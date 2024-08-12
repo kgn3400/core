@@ -1,0 +1,13 @@
+# Service ID
+update:
+  # Service name as shown in UI
+  name: Update
+  # Description of the service
+  description: Update dyn ip.
+
+# Service ID
+reset:
+  # Service name as shown in UI
+  name: Reset
+  # Description of the service
+  description: Reset changed.

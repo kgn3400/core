@@ -1,0 +1,96 @@
+{
+  "title": "Hiper drift",
+  "entity_component": {
+    "_": {
+      "name": "Hiper drift"
+    }
+  },
+  "config": {
+    "abort": {
+      "already_configured": "Enhed er allerede konfigureret"
+    },
+    "error": {
+      "missing_city": "By skal udfyldes",
+      "missing_selection": "Intet valgt",
+      "missing_street": "Gade skal udfyldes",
+      "unknown": "Uventet fejl"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "city_check": "Check driftssager for byen",
+          "city": "By",
+          "general_msg": "Check for generelle driftssager",
+          "region": "Region",
+          "street_check": "Chech driftssager for gaden",
+          "street": "Gade"
+        }
+      }
+    }
+  },
+  "options": {
+    "abort": {
+      "already_configured": "Enhed er allerede konfigureret"
+    },
+    "error": {
+      "missing_city": "By skal udfyldes",
+      "missing_selection": "Intet valgt",
+      "missing_street": "Gade skal udfyldes",
+      "unknown": "Uventet fejl"
+    },
+    "step": {
+      "init": {
+        "data": {
+          "city_check": "Check driftssager for byen",
+          "city": "By",
+          "general_msg": "Generelle driftssager",
+          "region": "Region",
+          "street_check": "Chech driftssager for gaden",
+          "street": "Gade"
+        }
+      }
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "sj_bh": "Sjælland og Bonholm",
+        "fyn": "Fyn",
+        "jylland": "Jylland"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "hiper_drift": {
+        "state_attributes": {
+          "content": {
+            "name": "Indhold"
+          },
+          "last_updated": {
+            "name": "Sidste opdatering"
+          }
+        }
+      }
+    },
+    "binary_sensor": {
+      "hiper_drift": {
+        "state_attributes": {
+          "message": {
+            "name": "Besked"
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "update": {
+      "description": "Opdater Hiper drift status.",
+      "name": "Opdater"
+    },
+    "reset": {
+      "description": "Nulstil Hiper drift status.",
+      "name": "Nulstil"
+    }
+  }
+}

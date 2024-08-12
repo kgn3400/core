@@ -1,0 +1,14 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "pypi_updates": {
+        "default": "mdi:package-variant"
+      }
+    }
+  },
+
+  "services": {
+    "update": "mdi:update",
+    "reset": "mdi:close-circle-outline"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "entity": {
+    "sensor": {
+      "lotto_dk": {
+        "default": "mdi:cash-multiple"
+      }
+    }
+  },
+
+  "services": {
+    "update": "mdi:update"
+  }
+}

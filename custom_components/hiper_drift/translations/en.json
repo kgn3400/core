@@ -1,0 +1,96 @@
+{
+  "title": "Hiper drift",
+  "entity_component": {
+    "_": {
+      "name": "Hiper drift"
+    }
+  },
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "missing_city": "Missing city",
+      "missing_selection": "Nothing selected",
+      "missing_street": "Missing street",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "city_check": "Check operation cases for city",
+          "city": "City",
+          "general_msg": "General operation cases",
+          "region": "Region",
+          "street_check": "Check operation cases for Street",
+          "street": "Street"
+        }
+      }
+    }
+  },
+  "options": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "missing_city": "Missing city",
+      "missing_selection": "Nothing selected",
+      "missing_street": "Missing street",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "init": {
+        "data": {
+          "city_check": "Check operation cases for city",
+          "city": "City",
+          "general_msg": "General operation cases",
+          "region": "Region",
+          "street_check": "Check operation cases for Street",
+          "street": "Street"
+        }
+      }
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "sj_bh": "Sjælland og Bonholm",
+        "fyn": "Fyn",
+        "jylland": "Jylland"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "hiper_drift": {
+        "state_attributes": {
+          "content": {
+            "name": "Content"
+          },
+          "last_updated": {
+            "name": "Last updated"
+          }
+        }
+      }
+    },
+    "binary_sensor": {
+      "hiper_drift": {
+        "state_attributes": {
+          "message": {
+            "name": "Message"
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "update": {
+      "description": "Update Hiper drift status.",
+      "name": "Update"
+    },
+    "reset": {
+      "description": "Reset Hiper drift status.",
+      "name": "Reset"
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "title": "PyPi updates",
+  "device": {
+    "pypi_updates": {
+      "name": "PyPi updates"
+    }
+  },
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "empty_pypi_package": "Empty Pypi package to add",
+      "missing_selection": "Nothing selected",
+      "missing_pypi_package": "Pypi package does not exist",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "user": {
+        "title": "PyPi updates",
+        "data": {
+          "add_more": "Add more",
+          "clear_update_after_hours": "Clear updates after",
+          "hours_between_check": "Hours between check for new updates",
+          "md_header_template": "Header template for markdown text",
+          "md_item_template": "Item template for markdown text. Values = package_name, version and old_version. Use html tag 'br' for linebreak",
+          "md_no_updates_template": "No updates template for markdown text",
+          "pypi_item": "PyPi package to add",
+          "pypi_list": "PyPi packages to check for updates"
+        }
+      }
+    }
+  },
+  "options": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "empty_pypi_package": "Empty Pypi package to add",
+      "missing_selection": "Nothing selected",
+      "missing_pypi_package": "Pypi package does not exist",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "init": {
+        "data": {
+          "add_more": "Add more",
+          "clear_update_after_hours": "Clear updates after",
+          "hours_between_check": "Hours between check for new updates",
+          "md_header_template": "Header template for markdown text",
+          "md_item_template": "Item template for markdown text. Values = package_name, version and old_version. Use html tag 'br' for linebreak",
+          "md_no_updates_template": "No updates template for markdown text",
+          "pypi_item": "PyPi package to add",
+          "pypi_list": "PyPi packages to check for updates"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "pypi_updates": {
+        "state_attributes": {
+          "pypi_updates": {
+            "name": "PyPi updates"
+          },
+          "markdown": {
+            "name": "Markdown"
+          },
+          "last_pypi_update_version": {
+            "name": "Last PyPi update version"
+          },
+          "last_pypi_update_old_version": {
+            "name": "Last PyPi update old version"
+          },
+          "last_pypi_update_package_name": {
+            "name": "Last PyPi update package name"
+          },
+          "last_pypi_update_package_url": {
+            "name": "Last PyPi update package url"
+          }
+        }
+      }
+    }
+  },
+  "issues": {
+    "template_error": {
+      "description": "Rendering template `{template}` ends in error.\nError: `{error_txt}` \n\n Please fix this problem.",
+      "title": "PyPi updates: Template error"
+    }
+  },
+  "services": {
+    "update": {
+      "description": "Check for PyPi updates.",
+      "name": "Check PyPi"
+    },
+    "reset": {
+      "description": "Reset all PyPi packages marked as updated.",
+      "name": "Reset PyPi updates"
+    }
+  }
+}

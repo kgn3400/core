@@ -1,0 +1,144 @@
+{
+  "title": "Message log",
+  "entity_component": {
+    "_": {
+      "name": "Message log"
+    }
+  },
+  "device": {
+    "message_log": {
+      "name": "Message log"
+    }
+  },
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "remove_message_after_hours": "Remove message after",
+          "default_icon": "default message icon",
+          "scroll_messages_every_minutes": "scroll messages every",
+          "scroll_through_last_messages_count": "Scroll through last messages",
+          "markdown_message_list_count": "Markdown message list count",
+          "order_by_message_level": "Order by message level",
+          "listen_to_timer_trigger": "Use Timer helper as scroll trigger",
+          "restart_timer": "Restart Timer helper automatic"
+        }
+      }
+    }
+  },
+  "options": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "init": {
+        "data": {
+          "remove_message_after_hours": "Remove message after",
+          "default_icon": "default message icon",
+          "scroll_messages_every_minutes": "scroll messages every",
+          "scroll_through_last_messages_count": "Scroll through last messages",
+          "markdown_message_list_count": "Markdown message list count",
+          "order_by_message_level": "Order by message level",
+          "listen_to_timer_trigger": "Use Timer helper as scroll trigger",
+          "restart_timer": "Restart Timer helper automatic"
+        }
+      },
+      "extra": {
+        "data": {
+          "rt_received": "Received",
+          "rt_for": "",
+          "rt_ago": "ago",
+          "rt_now": "now",
+          "message": "Message",
+          "messages": "Messages",
+          "last_message": "Last message",
+          "received": "Received",
+          "relevance": "Relevance",
+          "all": "All",
+          "info": "Info",
+          "attention": "Attention",
+          "warning": "Warning",
+          "error": "Error",
+          "message_settings": "|Setup| |\n| --- | ----------- |\n| Order by | : {orderby} |\n| Show | : {show} |"
+        }
+      }
+    }
+  },
+  "issues": {
+    "missing_timer_entity": {
+      "description": "It looks like either the Timer helper `{timer_entity}` has been deleted or removed for use in Message log `{entity}`. \n\n Please fix this problem.",
+      "title": "Message log: Timer helper deleted or renamed"
+    }
+  },
+  "services": {
+    "add": {
+      "description": "Add message to log.",
+      "name": "Add",
+      "fields": {
+        "message": {
+          "description": "Message to log.",
+          "name": "Message"
+        },
+        "message_level": {
+          "description": "Message level.",
+          "name": "Message level"
+        },
+        "icon": {
+          "description": "Message Icon to display.",
+          "name": "icon"
+        },
+        "remove_after": {
+          "description": "Remove message after.",
+          "name": "Remove after"
+        },
+        "notify": {
+          "description": "Create a notification.",
+          "name": "Notify"
+        },
+        "added_at": {
+          "description": "Added at timestamp.",
+          "name": "Added at"
+        }
+      }
+    },
+    "orderby": {
+      "description": "Order message list by.",
+      "name": "Order by",
+      "fields": {
+        "orderby": {
+          "description": "Order message list by.",
+          "name": "Order by"
+        }
+      }
+    },
+    "remove": {
+      "description": "Remove message from log.",
+      "name": "Remove messages",
+      "fields": {
+        "message_level": {
+          "description": "Remove specific Message levels.",
+          "name": "Message level"
+        }
+      }
+    },
+    "show": {
+      "description": "Messages to show.",
+      "name": "Show messages",
+      "fields": {
+        "show": {
+          "description": "Messages to show.",
+          "name": "Show messages"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "services": {
+    "orderby": "mdi:order-alphabetical-ascending",
+    "show": "mdi:eye-outline",
+    "remove": "mdi:message-off-outline",
+    "add": "mdi:message-plus-outline"
+  }
+}

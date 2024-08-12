@@ -1,0 +1,21 @@
+{
+  "domain": "hiper_drift",
+  "name": "Hiper drift",
+  "codeowners": [
+    "@kgn3400"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/kgn3400/hiper_drift",
+  "homekit": {},
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/kgn3400/hiper_drift/issues",
+  "requirements": [
+    "beautifulsoup4",
+    "lxml"
+  ],
+  "single_config_entry": true,
+  "ssdp": [],
+  "version": "1.0.18",
+  "zeroconf": []
+}

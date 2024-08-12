@@ -1,0 +1,72 @@
+{
+  "title": "Lotto DK",
+  "entity_component": {
+    "_": {
+      "name": "Lotto DK"
+    }
+  },
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "missing_selection": "Nothing selected",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "user": {
+        "title": "Danske lotto spil",
+        "data": {
+          "euro_jackpot": "Euro jackpot",
+          "lotto": "Lotto",
+          "viking_lotto": "Viking lotto",
+          "listen_to_timer_trigger": "Use Timer helper as scroll trigger",
+          "restart_timer": "Restart Timer helper automatic"
+        }
+      }
+    }
+  },
+  "options": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "missing_selection": "Nothing selected",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "init": {
+        "data": {
+          "euro_jackpot": "Euro jackpot",
+          "lotto": "Lotto",
+          "viking_lotto": "Viking lotto",
+          "listen_to_timer_trigger": "Use Timer helper as scroll trigger",
+          "restart_timer": "Restart Timer helper automatic"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "lotto_dk": {
+        "state_attributes": {
+          "price_pool": {
+            "name": "Price pool"
+          }
+        }
+      }
+    }
+  },
+  "issues": {
+    "missing_timer_entity": {
+      "description": "It looks like either the Timer helper `{timer_entity}` has been deleted or removed for use in Lotto DK `{entity}`. \n\n Please fix this problem.",
+      "title": "Lotto DK: Timer helper deleted or renamed"
+    }
+  },
+  "services": {
+    "update": {
+      "description": "Update lotto price pools.",
+      "name": "Update"
+    }
+  }
+}
