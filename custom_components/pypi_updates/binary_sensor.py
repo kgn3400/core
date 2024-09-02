@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
-import os
+from datetime import timedelta
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.storage import STORAGE_DIR
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .component_api import ComponentApi
-from .const import DOMAIN, TRANSLATION_KEY
+from .const import (
+    CONF_CLEAR_UPDATES_AFTER_HOURS,
+    CONF_HOURS_BETWEEN_CHECK,
+    CONF_PYPI_LIST,
+    DOMAIN,
+    TRANSLATION_KEY,
+)
 from .entity import ComponentEntity
 
 
@@ -25,11 +31,11 @@ async def async_setup_entry(
 ) -> None:
     """Entry for Pypi updates setup."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    component_api: ComponentApi = hass.data[DOMAIN][entry.entry_id]["component_api"]
+    # component_api: ComponentApi = hass.data[DOMAIN][entry.entry_id]["component_api"]
 
     sensors = []
 
-    sensors.append(PypiUpdatesBinarySensor(coordinator, entry, component_api))
+    sensors.append(PypiUpdatesBinarySensor(hass, coordinator, entry))
 
     async_add_entities(sensors)
 
@@ -42,28 +48,34 @@ class PypiUpdatesBinarySensor(ComponentEntity, BinarySensorEntity):
     # ------------------------------------------------------
     def __init__(
         self,
+        hass: HomeAssistant,
         coordinator: DataUpdateCoordinator,
         entry: ConfigEntry,
-        component_api: ComponentApi,
+        # component_api: ComponentApi,
     ) -> None:
-        """Binary sensor.
-
-        Args:
-            coordinator (DataUpdateCoordinator): _description_
-            entry (ConfigEntry): _description_
-            component_api (ComponentApi): _description_
-
-        """
+        """Binary sensor."""
 
         super().__init__(coordinator, entry)
 
-        self.component_api = component_api
-        self.coordinator = coordinator
+        self.component_api = ComponentApi(
+            hass,
+            coordinator,
+            entry,
+            async_get_clientsession(hass),
+            entry.options[CONF_PYPI_LIST],
+            entry.options[CONF_HOURS_BETWEEN_CHECK],
+            entry.options[CONF_CLEAR_UPDATES_AFTER_HOURS],
+        )
+
+        self.coordinator.update_method = self.component_api.async_update
+        self.coordinator.update_interval = timedelta(minutes=10)
 
         self.translation_key = TRANSLATION_KEY
 
         self._name = "Updates"
         self._unique_id = "updates"
+
+        self.coordinator.setup_method = self.component_api.async_setup
 
     # ------------------------------------------------------
     @property
@@ -146,8 +158,8 @@ class PypiUpdatesBinarySensor(ComponentEntity, BinarySensorEntity):
         """Handle when device registry updated."""
 
         if event.data["action"] == "remove":
-            if os.path.exists(self.hass.config.path(STORAGE_DIR, DOMAIN)):
-                os.remove(self.hass.config.path(STORAGE_DIR, DOMAIN))
+            await self.component_api.settings.async_remove_settings()
+            # await StoreSettings(self.hass, STORAGE_VERSION, STORAGE_KEY).async_remove()
 
     # ------------------------------------------------------
     async def async_added_to_hass(self) -> None:

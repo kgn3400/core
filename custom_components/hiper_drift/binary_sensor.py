@@ -73,18 +73,6 @@ class HiperBinarySensor(ComponentEntity, BinarySensorEntity):
         return self._name
 
     # ------------------------------------------------------
-    # @property
-    # def icon(self) -> str:
-    #     """Icon.
-
-    #     Returns:
-    #         str: Icon
-
-    #     """
-    #     return None
-    #     return "mdi:ip-network"
-
-    # ------------------------------------------------------
     @property
     def is_on(self) -> bool:
         """Get the state."""

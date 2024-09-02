@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from .settings_json import SettingsJson
+from homeassistant.core import HomeAssistant
+
+from .storage_json import StorageJson
 
 
 # ------------------------------------------------------
@@ -77,11 +79,11 @@ class PyPiItem(PyPiBaseItem):
 
 # ------------------------------------------------------
 # ------------------------------------------------------
-class PyPiSettings(SettingsJson):
+class PyPiSettings(StorageJson):
     """PyPiSettings."""
 
-    def __init__(self) -> None:
+    def __init__(self, hass: HomeAssistant) -> None:
         """Pypi settings."""
 
-        super().__init__()
+        super().__init__(hass)
         self.pypi_list: list[PyPiItem] = []

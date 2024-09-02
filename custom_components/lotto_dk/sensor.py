@@ -10,13 +10,17 @@ from homeassistant.components.sensor import (  # SensorDeviceClass,; SensorEntit
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers import start
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .component_api import ComponentApi, LottoTypes
 from .const import (
+    CONF_EURO_JACKPOT,
     CONF_LISTEN_TO_TIMER_TRIGGER,
+    CONF_LOTTO,
     CONF_RESTART_TIMER,
+    CONF_VIKING_LOTTO,
     DOMAIN,
     TRANSLATION_KEY,
     RefreshType,
@@ -32,8 +36,18 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Sensor setup."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    component_api: ComponentApi = hass.data[DOMAIN][entry.entry_id]["component_api"]
+    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
+        "coordinator"
+    ]
+
+    component_api: ComponentApi = ComponentApi(
+        hass,
+        coordinator,
+        async_get_clientsession(hass),
+        entry.options[CONF_EURO_JACKPOT],
+        entry.options[CONF_LOTTO],
+        entry.options[CONF_VIKING_LOTTO],
+    )
 
     sensors = []
 

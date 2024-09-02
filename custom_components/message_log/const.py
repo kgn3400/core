@@ -17,8 +17,10 @@ CONF_RESTART_TIMER = "restart_timer"
 CONF_LISTEN_TO_TIMER_TRIGGER = "listen_to_timer_trigger"
 
 TRANSLATION_KEY = DOMAIN
-
 TRANSLATE_EXTRA = "options.step.extra.data"
+
+STORAGE_VERSION = 1
+STORAGE_KEY = DOMAIN
 
 
 class RefreshType(Enum):

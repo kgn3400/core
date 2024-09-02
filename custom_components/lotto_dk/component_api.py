@@ -35,6 +35,7 @@ class ComponentApi:
     def __init__(
         self,
         hass: HomeAssistant,
+        coordinator: DataUpdateCoordinator,
         session: ClientSession | None,
         euro_jackpot: bool,
         lotto: bool,
@@ -42,9 +43,9 @@ class ComponentApi:
     ) -> None:
         """Lotto interface."""
         self.hass = hass
-        self.session = session
+        self.coordinator: DataUpdateCoordinator = coordinator
+        self.session: ClientSession = session
         self.get_euro_jackpot: bool = euro_jackpot
-        """Should euro jackpot be fetched"""
         self.euro_jackpot_price_pool: int = 0
         self.get_lotto: bool = lotto
         self.lotto_price_pool: int = 0
@@ -56,8 +57,9 @@ class ComponentApi:
         self.lotto_price_pool_scroll_next: LottoTypes = LottoTypes.EURO_JACKPOT
         self.next_webscrape: datetime = datetime.now()
         self.next_webscrape_delta: int = 60
-        self.coordinator: DataUpdateCoordinator
 
+        self.coordinator.update_interval = timedelta(minutes=10)
+        self.coordinator.update_method = self.async_update
         """Setup the actions for the Lotto integration."""
         hass.services.async_register(DOMAIN, "update", self.async_update_service)
 
@@ -66,11 +68,11 @@ class ComponentApi:
     # ------------------------------------------------------------------
     async def async_update_service(self, call: ServiceCall) -> None:
         """Lotto update service interface."""
-        await self.update()
+        await self.async_update()
         await self.coordinator.async_refresh()
 
     # ------------------------------------------------------------------
-    async def update(self) -> None:
+    async def async_update(self) -> None:
         """Lotto update interface."""
 
         if self.next_webscrape < datetime.now():
@@ -115,6 +117,8 @@ class ComponentApi:
                 )
                 return int(soup.title.text.split()[4].replace(".", ""))
         except TimeoutError:
+            pass
+        except IndexError:
             pass
 
         return 0

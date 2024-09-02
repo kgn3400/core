@@ -126,8 +126,9 @@ class ComponentApi:
         self.markdown_message_list: str = ""
         self.markdown_message_settings: str = ""
         self.message_list_sorted: list[MessageItem] = []
+
         self.settings: MessageLogSettings = MessageLogSettings(
-            self.entry.options.get(CONF_ORDER_BY_MESSAGE_LEVEL, True)
+            hass, self.entry.options.get(CONF_ORDER_BY_MESSAGE_LEVEL, True)
         )
 
         self.translate: Translate = Translate(hass, TRANSLATE_EXTRA)
@@ -182,28 +183,6 @@ class ComponentApi:
             )
         )
         return diff_str
-
-        # -----------------------------
-        # if diff < timedelta(seconds=6):
-        #     return self.translations.now_str
-
-        # elif diff < timedelta(minutes=1):
-        #     return f"{self.translations.for_str} {diff.seconds} {self.translations.seconds_str} {self.translations.ago_str}"
-
-        # elif diff < timedelta(hours=1):
-        #     minutes: int = diff.seconds // 60
-        #     return f"{self.translations.for_str} {minutes} {self.translations.minutes_str if minutes != 1 else self.translations.minute_str} {self.translations.ago_str}"
-
-        # elif diff < timedelta(days=1):
-        #     hours: int = diff.seconds // 3600
-        #     return f"{self.translations.for_str} {hours} {self.translations.hours_str if hours != 1 else self.translations.hour_str} {self.translations.ago_str}"
-
-        # elif diff < timedelta(weeks=1):
-        #     days: int = diff.days
-        #     return f"{self.translations.for_str} {days} {self.translations.days_str if days != 1 else self.translations.day_str} {self.translations.ago_str}"
-
-        # weeks: int = diff.days // 7
-        # return f"{self.translations.for_str} {weeks} {self.translations.weeks_str if weeks != 1 else self.translations.week_str} {self.translations.ago_str}"
 
     # ------------------------------------------------------------------
     async def async_remove_messages_service(self, call: ServiceCall) -> None:

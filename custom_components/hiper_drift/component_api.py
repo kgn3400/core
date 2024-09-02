@@ -2,7 +2,7 @@
 
 from asyncio import timeout
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import re
 from typing import Any
 
@@ -13,7 +13,19 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONF_CONTENT, CONF_FYN_REGION, CONF_MSG, CONF_SJ_BH_REGION, DOMAIN
+from .const import (
+    CONF_CITY,
+    CONF_CITY_CHECK,
+    CONF_CONTENT,
+    CONF_FYN_REGION,
+    CONF_GENERAL_MSG,
+    CONF_MSG,
+    CONF_REGION,
+    CONF_SJ_BH_REGION,
+    CONF_STREET,
+    CONF_STREET_CHECK,
+    DOMAIN,
+)
 
 
 # ------------------------------------------------------------------
@@ -25,33 +37,33 @@ class ComponentApi:
     def __init__(
         self,
         hass: HomeAssistant,
+        coordinator: DataUpdateCoordinator,
         entry: ConfigEntry,
         session: ClientSession | None,
-        region: str,
-        general_msg: bool,
-        city_check: bool,
-        city: str,
-        street_check: bool,
-        street: str,
     ) -> None:
         """Hiper api."""
 
         self.hass: HomeAssistant = hass
+        self.coordinator: DataUpdateCoordinator = coordinator
         self.entry: ConfigEntry = entry
         self.session: ClientSession | None = session
-        self.region: str = region
-        self.general_msg: bool = general_msg
-        self.city_check: bool = city_check
-        self.city: str = city
-        self.street_check: bool = street_check
-        self.street: str = street
+
+        self.region: str = entry.options[CONF_REGION]
+        self.general_msg: bool = entry.options[CONF_GENERAL_MSG]
+        self.city_check: bool = entry.options[CONF_CITY_CHECK]
+        self.city: str = entry.options[CONF_CITY]
+        self.street_check: bool = entry.options[CONF_STREET_CHECK]
+        self.street: str = entry.options[CONF_STREET]
+
         self.request_timeout: int = 10
         self.close_session: bool = False
         self.is_on: bool = False
         self.msg: str = self.entry.options.get(CONF_MSG, "")
         self.content: str = self.entry.options.get(CONF_CONTENT, "")
-        self.coordinator: DataUpdateCoordinator
         self.last_updated: datetime = None
+
+        self.coordinator.update_interval = timedelta(minutes=15)
+        self.coordinator.update_method = self.async_update
 
         """Setup the actions for the Hiper integration."""
         hass.services.async_register(DOMAIN, "update", self.async_update_service)
@@ -81,13 +93,14 @@ class ComponentApi:
             self.session = ClientSession()
             self.close_session = True
 
-        await self._async_check_hiper(self.region)
+        await self.async_check_hiper(self.region)
 
         if self.session and self.close_session:
             await self.session.close()
 
     # ------------------------------------------------------
-    async def _async_check_hiper(self, region: str) -> None:
+    async def async_check_hiper(self, region: str) -> None:
+        """Check if Hiper drift."""
         tmp_msg: str = ""
         tmp_content: str = ""
         is_updated: bool = False

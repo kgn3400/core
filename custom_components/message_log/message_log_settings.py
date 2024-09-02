@@ -5,7 +5,9 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from functools import total_ordering
 
-from .settings_json import SettingsJson
+from homeassistant.core import HomeAssistant
+
+from .storage_json import StorageJson
 
 
 # ------------------------------------------------------
@@ -197,14 +199,14 @@ class MessageItemAttr:
 # ------------------------------------------------------
 # ------------------------------------------------------
 @dataclass
-class MessageLogSettings(SettingsJson):
+class MessageLogSettings(StorageJson):
     """MessageLogSettings."""
 
     # ------------------------------------------------------
-    def __init__(self, orderby_message_level: bool = True) -> None:
+    def __init__(self, hass: HomeAssistant, orderby_message_level: bool = True) -> None:
         """Message log settings."""
 
-        super().__init__()
+        super().__init__(hass)
 
         self.highest_message_level: MessageLevel = MessageLevel.INFO
         self.message_list: list[MessageItem] = []

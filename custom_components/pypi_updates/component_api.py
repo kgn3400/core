@@ -13,7 +13,6 @@ from homeassistant.const import STATE_OFF
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.storage import STORAGE_DIR
 from homeassistant.helpers.template import Template
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -38,6 +37,7 @@ class ComponentApi:
     def __init__(
         self,
         hass: HomeAssistant,
+        coordinator: DataUpdateCoordinator,
         entry: ConfigEntry,
         session: ClientSession | None,
         pypi_list: list[str],
@@ -47,6 +47,7 @@ class ComponentApi:
         """Component api."""
 
         self.hass = hass
+        self.coordinator: DataUpdateCoordinator = coordinator
         self.entry: ConfigEntry = entry
         self.session: ClientSession | None = session
         self.pypi_list: list[str] = pypi_list
@@ -61,24 +62,21 @@ class ComponentApi:
         self.last_pypi_update: PyPiBaseItem = PyPiBaseItem()
         self.markdown: str = ""
         self.last_full_update: datetime = datetime.now()
-        self.coordinator: DataUpdateCoordinator
         self.last_error_template: str = ""
         self.last_error_txt_template: str = ""
 
-        self.settings: PyPiSettings = PyPiSettings()
+        self.settings: PyPiSettings = PyPiSettings(hass)
 
         """Set up the actions for the Pypi updates integration."""
         hass.services.async_register(DOMAIN, "update", self.async_update_service)
         hass.services.async_register(DOMAIN, "reset", self.async_reset_service)
 
     # ------------------------------------------------------------------
-    async def async_startup(self) -> None:
-        """Pypi startup."""
-        await self.settings.async_read_settings(
-            self.hass.config.path(STORAGE_DIR, DOMAIN)
-        )
+    # async def async_startup(self) -> None:
+    #     """Pypi startup."""
+    #     await self.settings.async_read_settings()
 
-        await self.async_sync_lists()
+    #     await self.async_sync_lists()
 
     # ------------------------------------------------------------------
     async def async_sync_lists(self) -> None:
@@ -145,14 +143,18 @@ class ComponentApi:
         await self.async_create_markdown()
 
     # ------------------------------------------------------------------
+    async def async_setup(self) -> None:
+        """Set up the Pypi updates component."""
+
+        await self.settings.async_read_settings()
+
+        await self.async_sync_lists()
+
+    # ------------------------------------------------------------------
     async def async_update(self) -> None:
         """Update."""
-        if self.first_time:
-            self.first_time = False
-            await self.async_startup()
-            await self.async_go_update(True)
-        else:
-            await self.async_go_update()
+
+        await self.async_go_update()
 
     # ------------------------------------------------------------------
     async def async_create_markdown(self) -> None:
