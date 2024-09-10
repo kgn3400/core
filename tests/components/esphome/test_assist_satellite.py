@@ -11,6 +11,9 @@ from aioesphomeapi import (
     APIClient,
     EntityInfo,
     EntityState,
+    MediaPlayerFormatPurpose,
+    MediaPlayerInfo,
+    MediaPlayerSupportedFormat,
     UserService,
     VoiceAssistantAudioSettings,
     VoiceAssistantCommandFlag,
@@ -20,10 +23,11 @@ from aioesphomeapi import (
 )
 import pytest
 
-from homeassistant.components import assist_satellite
+from homeassistant.components import assist_satellite, tts
 from homeassistant.components.assist_pipeline import PipelineEvent, PipelineEventType
 from homeassistant.components.assist_satellite.entity import (
     AssistSatelliteEntity,
+    AssistSatelliteEntityFeature,
     AssistSatelliteState,
 )
 from homeassistant.components.esphome import DOMAIN
@@ -31,6 +35,7 @@ from homeassistant.components.esphome.assist_satellite import (
     EsphomeAssistSatellite,
     VoiceAssistantUDPServer,
 )
+from homeassistant.components.media_source import PlayMedia
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er, intent as intent_helper
@@ -820,3 +825,216 @@ async def test_streaming_tts_errors(
             VoiceAssistantEventType.VOICE_ASSISTANT_TTS_STREAM_END,
             {},
         )
+
+
+async def test_tts_format_from_media_player(
+    hass: HomeAssistant,
+    mock_client: APIClient,
+    mock_esphome_device: Callable[
+        [APIClient, list[EntityInfo], list[UserService], list[EntityState]],
+        Awaitable[MockESPHomeDevice],
+    ],
+) -> None:
+    """Test that the text-to-speech format is pulled from the first media player."""
+    mock_device: MockESPHomeDevice = await mock_esphome_device(
+        mock_client=mock_client,
+        entity_info=[
+            MediaPlayerInfo(
+                object_id="mymedia_player",
+                key=1,
+                name="my media_player",
+                unique_id="my_media_player",
+                supports_pause=True,
+                supported_formats=[
+                    MediaPlayerSupportedFormat(
+                        format="flac",
+                        sample_rate=48000,
+                        num_channels=2,
+                        purpose=MediaPlayerFormatPurpose.DEFAULT,
+                    ),
+                    # This is the format that should be used for tts
+                    MediaPlayerSupportedFormat(
+                        format="mp3",
+                        sample_rate=22050,
+                        num_channels=1,
+                        purpose=MediaPlayerFormatPurpose.ANNOUNCEMENT,
+                    ),
+                ],
+            )
+        ],
+        user_service=[],
+        states=[],
+        device_info={
+            "voice_assistant_feature_flags": VoiceAssistantFeature.VOICE_ASSISTANT
+        },
+    )
+    await hass.async_block_till_done()
+
+    satellite = get_satellite_entity(hass, mock_device.device_info.mac_address)
+    assert satellite is not None
+
+    with patch(
+        "homeassistant.components.assist_satellite.entity.async_pipeline_from_audio_stream",
+    ) as mock_pipeline_from_audio_stream:
+        await satellite.handle_pipeline_start(
+            conversation_id="",
+            flags=0,
+            audio_settings=VoiceAssistantAudioSettings(),
+            wake_word_phrase=None,
+        )
+
+        mock_pipeline_from_audio_stream.assert_called_once()
+        kwargs = mock_pipeline_from_audio_stream.call_args_list[0].kwargs
+
+        # Should be ANNOUNCEMENT format from media player
+        assert kwargs.get("tts_audio_output") == {
+            tts.ATTR_PREFERRED_FORMAT: "mp3",
+            tts.ATTR_PREFERRED_SAMPLE_RATE: 22050,
+            tts.ATTR_PREFERRED_SAMPLE_CHANNELS: 1,
+            tts.ATTR_PREFERRED_SAMPLE_BYTES: 2,
+        }
+
+
+async def test_announce_supported_features(
+    hass: HomeAssistant,
+    mock_client: APIClient,
+    mock_esphome_device: Callable[
+        [APIClient, list[EntityInfo], list[UserService], list[EntityState]],
+        Awaitable[MockESPHomeDevice],
+    ],
+) -> None:
+    """Test that the announce supported feature is set by flags."""
+    mock_device: MockESPHomeDevice = await mock_esphome_device(
+        mock_client=mock_client,
+        entity_info=[],
+        user_service=[],
+        states=[],
+        device_info={
+            "voice_assistant_feature_flags": VoiceAssistantFeature.VOICE_ASSISTANT
+        },
+    )
+    await hass.async_block_till_done()
+
+    satellite = get_satellite_entity(hass, mock_device.device_info.mac_address)
+    assert satellite is not None
+
+    assert not (satellite.supported_features & AssistSatelliteEntityFeature.ANNOUNCE)
+
+
+async def test_announce_message(
+    hass: HomeAssistant,
+    mock_client: APIClient,
+    mock_esphome_device: Callable[
+        [APIClient, list[EntityInfo], list[UserService], list[EntityState]],
+        Awaitable[MockESPHomeDevice],
+    ],
+) -> None:
+    """Test announcement with message."""
+    mock_device: MockESPHomeDevice = await mock_esphome_device(
+        mock_client=mock_client,
+        entity_info=[],
+        user_service=[],
+        states=[],
+        device_info={
+            "voice_assistant_feature_flags": VoiceAssistantFeature.VOICE_ASSISTANT
+            | VoiceAssistantFeature.SPEAKER
+            | VoiceAssistantFeature.API_AUDIO
+            | VoiceAssistantFeature.ANNOUNCE
+        },
+    )
+    await hass.async_block_till_done()
+
+    satellite = get_satellite_entity(hass, mock_device.device_info.mac_address)
+    assert satellite is not None
+
+    done = asyncio.Event()
+
+    async def send_voice_assistant_announcement_await_response(
+        media_id: str, timeout: float, text: str
+    ):
+        assert media_id == "https://www.home-assistant.io/resolved.mp3"
+        assert text == "test-text"
+
+        done.set()
+
+    with (
+        patch(
+            "homeassistant.components.assist_satellite.entity.tts_generate_media_source_id",
+            return_value="media-source://bla",
+        ),
+        patch(
+            "homeassistant.components.media_source.async_resolve_media",
+            return_value=PlayMedia(
+                url="https://www.home-assistant.io/resolved.mp3",
+                mime_type="audio/mp3",
+            ),
+        ),
+        patch.object(
+            mock_client,
+            "send_voice_assistant_announcement_await_response",
+            new=send_voice_assistant_announcement_await_response,
+        ),
+    ):
+        async with asyncio.timeout(1):
+            await hass.services.async_call(
+                assist_satellite.DOMAIN,
+                "announce",
+                {"entity_id": satellite.entity_id, "message": "test-text"},
+                blocking=True,
+            )
+            await done.wait()
+
+
+async def test_announce_media_id(
+    hass: HomeAssistant,
+    mock_client: APIClient,
+    mock_esphome_device: Callable[
+        [APIClient, list[EntityInfo], list[UserService], list[EntityState]],
+        Awaitable[MockESPHomeDevice],
+    ],
+) -> None:
+    """Test announcement with media id."""
+    mock_device: MockESPHomeDevice = await mock_esphome_device(
+        mock_client=mock_client,
+        entity_info=[],
+        user_service=[],
+        states=[],
+        device_info={
+            "voice_assistant_feature_flags": VoiceAssistantFeature.VOICE_ASSISTANT
+            | VoiceAssistantFeature.SPEAKER
+            | VoiceAssistantFeature.API_AUDIO
+            | VoiceAssistantFeature.ANNOUNCE
+        },
+    )
+    await hass.async_block_till_done()
+
+    satellite = get_satellite_entity(hass, mock_device.device_info.mac_address)
+    assert satellite is not None
+
+    done = asyncio.Event()
+
+    async def send_voice_assistant_announcement_await_response(
+        media_id: str, timeout: float, text: str
+    ):
+        assert media_id == "https://www.home-assistant.io/resolved.mp3"
+
+        done.set()
+
+    with (
+        patch.object(
+            mock_client,
+            "send_voice_assistant_announcement_await_response",
+            new=send_voice_assistant_announcement_await_response,
+        ),
+    ):
+        async with asyncio.timeout(1):
+            await hass.services.async_call(
+                assist_satellite.DOMAIN,
+                "announce",
+                {
+                    "entity_id": satellite.entity_id,
+                    "media_id": "https://www.home-assistant.io/resolved.mp3",
+                },
+                blocking=True,
+            )
+            await done.wait()

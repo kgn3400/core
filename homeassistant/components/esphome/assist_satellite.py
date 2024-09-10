@@ -6,12 +6,14 @@ import asyncio
 from collections.abc import AsyncIterable
 from functools import partial
 import io
+from itertools import chain
 import logging
 import socket
 from typing import Any, cast
 import wave
 
 from aioesphomeapi import (
+    MediaPlayerFormatPurpose,
     VoiceAssistantAudioSettings,
     VoiceAssistantCommandFlag,
     VoiceAssistantEventType,
@@ -71,6 +73,8 @@ _TIMER_EVENT_TYPES: EsphomeEnumMapper[VoiceAssistantTimerEventType, TimerEventTy
         }
     )
 )
+
+_ANNOUNCEMENT_TIMEOUT_SEC = 5 * 60  # 5 minutes
 
 
 async def async_setup_entry(
@@ -181,6 +185,12 @@ class EsphomeAssistSatellite(
                 )
             )
 
+        if feature_flags & VoiceAssistantFeature.ANNOUNCE:
+            # Device supports announcements
+            self._attr_supported_features |= (
+                assist_satellite.AssistSatelliteEntityFeature.ANNOUNCE
+            )
+
     async def async_will_remove_from_hass(self) -> None:
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
@@ -249,6 +259,20 @@ class EsphomeAssistSatellite(
 
         self.cli.send_voice_assistant_event(event_type, data_to_send)
 
+    async def async_announce(self, message: str, media_id: str) -> None:
+        """Announce media on the satellite.
+
+        Should block until the announcement is done playing.
+        """
+        _LOGGER.debug(
+            "Waiting for announcement to finished (message=%s, media_id=%s)",
+            message,
+            media_id,
+        )
+        await self.cli.send_voice_assistant_announcement_await_response(
+            media_id, _ANNOUNCEMENT_TIMEOUT_SEC, message
+        )
+
     async def handle_pipeline_start(
         self,
         conversation_id: str,
@@ -287,6 +311,18 @@ class EsphomeAssistSatellite(
             start_stage = PipelineStage.STT
 
         end_stage = PipelineStage.TTS
+
+        if feature_flags & VoiceAssistantFeature.SPEAKER:
+            # Stream WAV audio
+            self._attr_tts_options = {
+                tts.ATTR_PREFERRED_FORMAT: "wav",
+                tts.ATTR_PREFERRED_SAMPLE_RATE: 16000,
+                tts.ATTR_PREFERRED_SAMPLE_CHANNELS: 1,
+                tts.ATTR_PREFERRED_SAMPLE_BYTES: 2,
+            }
+        else:
+            # ANNOUNCEMENT format from media player
+            self._update_tts_format()
 
         # Run the pipeline
         _LOGGER.debug("Running pipeline from %s to %s", start_stage, end_stage)
@@ -339,6 +375,19 @@ class EsphomeAssistSatellite(
             timer_info.seconds_left,
             timer_info.is_active,
         )
+
+    def _update_tts_format(self) -> None:
+        """Update the TTS format from the first media player."""
+        for supported_format in chain(*self.entry_data.media_player_formats.values()):
+            # Find first announcement format
+            if supported_format.purpose == MediaPlayerFormatPurpose.ANNOUNCEMENT:
+                self._attr_tts_options = {
+                    tts.ATTR_PREFERRED_FORMAT: supported_format.format,
+                    tts.ATTR_PREFERRED_SAMPLE_RATE: supported_format.sample_rate,
+                    tts.ATTR_PREFERRED_SAMPLE_CHANNELS: supported_format.num_channels,
+                    tts.ATTR_PREFERRED_SAMPLE_BYTES: 2,
+                }
+                break
 
     async def _stream_tts_audio(
         self,
