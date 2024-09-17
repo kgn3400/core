@@ -55,7 +55,7 @@ class HiperMsgSensor(ComponentEntity, SensorEntity):
         super().__init__(coordinator, entry)
 
         self.component_api = component_api
-        self.coordinator = coordinator
+        # self.coordinator = coordinator
         self._name = "Message"
         self._unique_id = "message"
 
@@ -72,20 +72,6 @@ class HiperMsgSensor(ComponentEntity, SensorEntity):
         """
         return self._name
 
-    # ------------------------------------------------------
-    # @property
-    # def icon(self) -> str:
-    #     """Icon.
-
-    #     Returns:
-    #         str: Icon
-
-    #     """
-
-    #     return None
-    #     return "mdi:message-reply-outline"
-
-    # ------------------------------------------------------
     @property
     def native_value(self) -> str | None:
         """Native value.
@@ -108,7 +94,7 @@ class HiperMsgSensor(ComponentEntity, SensorEntity):
 
         attr: dict = {}
 
-        attr["content"] = self.component_api.content
+        attr["content"] = self.component_api.content if self.component_api.is_on else ""
 
         if self.component_api.last_updated is not None:
             attr["last_updated"] = self.component_api.last_updated

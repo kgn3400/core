@@ -9,6 +9,7 @@ from homeassistant.helpers.device import (
     async_remove_stale_devices_links_keep_current_device,
 )
 
+from .component_api import ComponentApi
 from .const import DOMAIN
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR]
@@ -18,6 +19,15 @@ PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR]
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up State updates from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    component_api: ComponentApi = ComponentApi(
+        hass,
+        entry,
+    )
+
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+        "component_api": component_api,
+    }
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
@@ -51,5 +61,13 @@ async def update_listener(
     config_entry: ConfigEntry,
 ) -> None:
     """Reload on config entry update."""
+
+    component_api: ComponentApi = hass.data[DOMAIN][config_entry.entry_id][
+        "component_api"
+    ]
+
+    if component_api.supress_update_listener:
+        component_api.supress_update_listener = False
+        return
 
     await hass.config_entries.async_reload(config_entry.entry_id)

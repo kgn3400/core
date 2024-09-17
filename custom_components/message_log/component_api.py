@@ -14,6 +14,7 @@ from .const import (
     CONF_MARKDOWN_MESSAGE_LIST_COUNT,
     CONF_ORDER_BY_MESSAGE_LEVEL,
     CONF_REMOVE_MESSAGE_AFTER_HOURS,
+    CONF_SCROLL_MESSAGES_EVERY_MINUTES,
     CONF_SCROLL_THROUGH_LAST_MESSAGES_COUNT,
     DOMAIN,
     TRANSLATE_EXTRA,
@@ -115,12 +116,18 @@ class Translations:
 class ComponentApi:
     """Message log interface."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        coordinator: DataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
         """Component api."""
+
         self.hass = hass
+        self.coordinator: DataUpdateCoordinator = coordinator
         self.entry: ConfigEntry = entry
 
-        self.coordinator: DataUpdateCoordinator
         self.scroll_message_pos: int = -1
         self.markdown: str = ""
         self.markdown_message_list: str = ""
@@ -130,6 +137,11 @@ class ComponentApi:
         self.settings: MessageLogSettings = MessageLogSettings(
             hass, self.entry.options.get(CONF_ORDER_BY_MESSAGE_LEVEL, True)
         )
+
+        self.coordinator.update_interval = timedelta(
+            minutes=entry.options.get(CONF_SCROLL_MESSAGES_EVERY_MINUTES, 1)
+        )
+        self.coordinator.update_method = self.async_update
 
         self.translate: Translate = Translate(hass, TRANSLATE_EXTRA)
         self.translations: Translations = Translations(hass)

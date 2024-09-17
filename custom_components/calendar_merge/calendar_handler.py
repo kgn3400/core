@@ -101,6 +101,7 @@ class CalendarHandler:
         self.last_error_template: str = ""
         self.last_error_txt_template: str = ""
         self.next_update: datetime = datetime.now()
+        self.supress_update_listener: bool = False
 
     # ------------------------------------------------------
     async def get_merge_calendar_events(

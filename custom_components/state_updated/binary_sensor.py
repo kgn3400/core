@@ -77,7 +77,10 @@ class StateUpdatedBinarySensor(BinarySensorEntity):
         self.hass = hass
 
         self.translation_key = TRANSLATION_KEY
-        self.component_api: ComponentApi = ComponentApi(self.hass, self.entry)
+
+        self.component_api: ComponentApi = hass.data[DOMAIN][entry.entry_id][
+            "component_api"
+        ]
 
         self.coordinator: DataUpdateCoordinator = DataUpdateCoordinator(
             self.hass,
@@ -91,7 +94,7 @@ class StateUpdatedBinarySensor(BinarySensorEntity):
         platform = entity_platform.async_get_current_platform()
         platform.async_register_entity_service(
             "reset_entity",
-            {},
+            None,
             self.async_reset_entity,
         )
 

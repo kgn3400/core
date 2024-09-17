@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from homeassistant.components.sensor import (  # SensorDeviceClass,; SensorEntityDescription,
-    SensorEntity,
-)
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, start
@@ -36,7 +34,11 @@ async def async_setup_entry(
 ) -> None:
     """Sensor setup."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    component_api: ComponentApi = hass.data[DOMAIN][entry.entry_id]["component_api"]
+    component_api: ComponentApi = ComponentApi(
+        hass,
+        coordinator,
+        entry,
+    )
 
     await component_api.settings.async_read_settings()
 
@@ -66,16 +68,12 @@ class MessageLastSensor(ComponentEntity, SensorEntity):
         super().__init__(coordinator, entry)
 
         self.component_api = component_api
-        self.coordinator = coordinator
         self.hass: HomeAssistant = hass
         self.entry: ConfigEntry = entry
 
         self._name = "Last message"
         self._unique_id = "last_message"
         self.translation_key = TRANSLATION_KEY
-
-        # self._attr_has_entity_name = True
-        # self._attr_translation_key = "last_message"
 
     # ------------------------------------------------------
     @property
@@ -190,7 +188,7 @@ class MessageLastSensor(ComponentEntity, SensorEntity):
         """Handle when device registry updated."""
 
         if event.data["action"] == "remove":
-            self.component_api.settings.async_remove_settings()
+            await self.component_api.settings.async_remove_settings()
 
 
 # ------------------------------------------------------
@@ -213,7 +211,6 @@ class MessageScrollSensor(ComponentEntity, SensorEntity):
         self.hass: HomeAssistant = hass
         self.entry: ConfigEntry = entry
         self.component_api = component_api
-        self.coordinator = coordinator
 
         self.refresh_type: RefreshType = RefreshType.NORMAL
 
@@ -221,9 +218,6 @@ class MessageScrollSensor(ComponentEntity, SensorEntity):
         self._unique_id = "scroll_message"
 
         self.translation_key = TRANSLATION_KEY
-
-        # self._attr_has_entity_name = True
-        # self._attr_translation_key = "scroll_message"
 
         if self.entry.options.get(CONF_LISTEN_TO_TIMER_TRIGGER, ""):
             self.refresh_type = RefreshType.LISTEN_TO_TIMER_TRIGGER

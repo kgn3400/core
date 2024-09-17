@@ -68,7 +68,6 @@ class ComponentApi:
     # ------------------------------------------------------------------
     async def async_update_service(self, call: ServiceCall) -> None:
         """Lotto update service interface."""
-        await self.async_update()
         await self.coordinator.async_refresh()
 
     # ------------------------------------------------------------------

@@ -70,4 +70,12 @@ async def update_listener(
 ) -> None:
     """Reload on config entry update."""
 
+    component_api: ComponentApi = hass.data[DOMAIN][config_entry.entry_id][
+        "component_api"
+    ]
+
+    if component_api.supress_update_listener:
+        component_api.supress_update_listener = False
+        return
+
     await hass.config_entries.async_reload(config_entry.entry_id)

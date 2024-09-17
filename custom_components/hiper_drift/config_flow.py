@@ -86,7 +86,7 @@ CONFIG_OPTIONS_SCHEMA = vol.Schema(
             CONF_CITY_CHECK,
             default=False,
         ): cv.boolean,
-        vol.Optional(
+        vol.Required(
             CONF_CITY,
         ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
         vol.Required(

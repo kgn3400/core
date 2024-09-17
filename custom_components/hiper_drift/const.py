@@ -18,6 +18,7 @@ CONF_FYN = "Fyn"
 CONF_JYL = "Jylland"
 CONF_MSG = "message"
 CONF_CONTENT = "content"
+CONF_IS_ON = "is_on"
 
 TRANSLATION_KEY_REGION = "region"
 CONF_SJ_BH_REGION = "sj_bh"

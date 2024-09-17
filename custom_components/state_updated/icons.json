@@ -7,7 +7,11 @@
     }
   },
   "services": {
-    "reset_all": "mdi:close-circle-multiple-outline",
-    "reset_entity": "mdi:close-circle-outline"
+    "reset_all": {
+      "service": "mdi:close-circle-multiple-outline"
+    },
+    "reset_entity": {
+      "service": "mdi:close-circle-outline"
+    }
   }
 }

@@ -19,6 +19,8 @@ from .const import (
     CONF_CONTENT,
     CONF_FYN_REGION,
     CONF_GENERAL_MSG,
+    CONF_IS_ON,
+    CONF_JYL_REGION,
     CONF_MSG,
     CONF_REGION,
     CONF_SJ_BH_REGION,
@@ -57,10 +59,11 @@ class ComponentApi:
 
         self.request_timeout: int = 10
         self.close_session: bool = False
-        self.is_on: bool = False
+        self.is_on: bool = self.entry.options.get(CONF_IS_ON, False)
         self.msg: str = self.entry.options.get(CONF_MSG, "")
         self.content: str = self.entry.options.get(CONF_CONTENT, "")
         self.last_updated: datetime = None
+        self.supress_update_listener: bool = False
 
         self.coordinator.update_interval = timedelta(minutes=15)
         self.coordinator.update_method = self.async_update
@@ -73,6 +76,7 @@ class ComponentApi:
     async def async_reset_service(self, call: ServiceCall) -> None:
         """Hiper service interface."""
         self.is_on = False
+        await self.update_config()
         await self.coordinator.async_request_refresh()
 
     # ------------------------------------------------------------------
@@ -80,7 +84,7 @@ class ComponentApi:
         """Hiper service interface."""
         self.msg = ""
         self.content = ""
-        self.update_config("", "")
+        await self.update_config()
 
         await self.async_update()
         await self.coordinator.async_request_refresh()
@@ -104,20 +108,11 @@ class ComponentApi:
         tmp_msg: str = ""
         tmp_content: str = ""
         is_updated: bool = False
-
-        if region == CONF_SJ_BH_REGION:
-            url_region: str = "https://www.hiper.dk/drift/region/sjaelland-og-bornholm"
-        elif region == CONF_FYN_REGION:
-            url_region = "https://www.hiper.dk/drift/region/fyn"
-
-        else:  # region == CONF_JYL_REGION:
-            url_region = "https://www.hiper.dk/drift/region/jylland"
+        ROOT_DRIFT_URL: str = "https://www.hiper.dk/drift/"
 
         try:
             async with timeout(self.request_timeout):
-                response = await self.session.request(
-                    "GET", "https://www.hiper.dk/drift"
-                )
+                response = await self.session.request("GET", ROOT_DRIFT_URL)
 
                 soup = await self.hass.async_add_executor_job(
                     BeautifulSoup, await response.text(), "lxml"
@@ -139,6 +134,17 @@ class ComponentApi:
                 )[0]
                 tmp_content = tag.text.strip()
                 is_updated = True
+
+            if region == CONF_SJ_BH_REGION:
+                url_region: str = ROOT_DRIFT_URL + "region/sjaelland-og-bornholm"
+            elif region == CONF_FYN_REGION:
+                url_region = ROOT_DRIFT_URL + "region/fyn"
+
+            elif region == CONF_JYL_REGION:
+                url_region = ROOT_DRIFT_URL + "region/jylland"
+
+            else:
+                ROOT_DRIFT_URL = "https://www.fail.xx"
 
             async with timeout(self.request_timeout):
                 response = await self.session.request("GET", url_region)
@@ -189,10 +195,10 @@ class ComponentApi:
                     self.content = tmp_content
                     self.is_on = True
                     self.last_updated = datetime.now(UTC)
-                    self.update_config(tmp_msg, tmp_content)
+                    await self.update_config()
             else:
                 if self.is_on:
-                    self.update_config("", "")
+                    await self.update_config()
 
                 self.msg = ""
                 self.content = ""
@@ -203,12 +209,14 @@ class ComponentApi:
             pass
 
     # ------------------------------------------------------------------
-    def update_config(self, msg: str, content: str) -> None:
+    async def update_config(self) -> None:
         """Update config."""
 
         tmp_options: dict[str, Any] = self.entry.options.copy()
-        tmp_options[CONF_MSG] = msg
-        tmp_options[CONF_CONTENT] = content
+        tmp_options[CONF_MSG] = self.msg
+        tmp_options[CONF_CONTENT] = self.content
+        tmp_options[CONF_IS_ON] = self.is_on
+        self.supress_update_listener = True
 
         self.hass.config_entries.async_update_entry(
             self.entry, data=tmp_options, options=tmp_options

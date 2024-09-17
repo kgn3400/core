@@ -53,9 +53,10 @@ class HiperBinarySensor(ComponentEntity, BinarySensorEntity):
 
         """
         super().__init__(coordinator, entry)
+        self.entry: ConfigEntry = entry
 
         self.component_api = component_api
-        self.coordinator = coordinator
+        # self.coordinator = coordinator
 
         self._name = "Status"
         self._unique_id = "status"
@@ -91,7 +92,7 @@ class HiperBinarySensor(ComponentEntity, BinarySensorEntity):
 
         attr: dict = {}
 
-        attr["message"] = self.component_api.msg
+        attr["message"] = self.component_api.msg if self.component_api.is_on else ""
 
         return attr
 

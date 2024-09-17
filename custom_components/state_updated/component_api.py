@@ -53,6 +53,7 @@ class ComponentApi:
 
         self.uom: str = self.get_uom()
         self.text: str = ""
+        self.supress_update_listener: bool = False
 
         self.new_value: Any = entry.options.get(CONF_NEW_VALUE, "")
         self.old_value: Any = entry.options.get(CONF_OLD_VALUE, "")
@@ -101,6 +102,8 @@ class ComponentApi:
         tmp_options[CONF_OLD_VALUE] = self.old_value
         tmp_options[CONF_UPDATED] = self.updated
         tmp_options[CONF_LAST_UPDATED] = self.last_updated.isoformat()
+
+        self.supress_update_listener = True
 
         self.hass.config_entries.async_update_entry(
             self.entry, data=tmp_options, options=tmp_options
