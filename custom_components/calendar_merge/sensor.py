@@ -120,7 +120,7 @@ class CalendarMergeSensor(SensorEntity, BaseCalendarMergeSensor):
 
         self.translation_key = TRANSLATION_KEY
         self.markdown_text: str = ""
-        self.events_json: dict = {}
+        self.events_dict: dict = {}
 
         self.coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
             "coordinator"
@@ -185,7 +185,7 @@ class CalendarMergeSensor(SensorEntity, BaseCalendarMergeSensor):
             await event_sensor.async_refresh()
 
         self.markdown_text = self.calendar_handler.create_markdown()
-        self.events_json = self.calendar_handler.events
+        self.events_dict = self.calendar_handler.get_events_to_att()
 
     # ------------------------------------------------------
     async def async_will_remove_from_hass(self) -> None:
@@ -262,7 +262,7 @@ class CalendarMergeSensor(SensorEntity, BaseCalendarMergeSensor):
         """
 
         attr: dict = {}
-        attr["events"] = self.events_json
+        attr["events"] = self.events_dict
         attr["markdown_text"] = self.markdown_text
         return attr
 
@@ -425,9 +425,7 @@ class CalendarMergeEventsSensor(SensorEntity, BaseCalendarMergeSensor):
 
         """
 
-        attr: dict = {}
-
-        return attr
+        return {}
 
     # ------------------------------------------------------
     @property
