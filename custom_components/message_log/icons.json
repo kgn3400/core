@@ -1,8 +1,16 @@
 {
   "services": {
-    "orderby": "mdi:order-alphabetical-ascending",
-    "show": "mdi:eye-outline",
-    "remove": "mdi:message-off-outline",
-    "add": "mdi:message-plus-outline"
+    "orderby": {
+      "service": "mdi:order-alphabetical-ascending"
+    },
+    "show": {
+      "service": "mdi:eye-outline"
+    },
+    "remove": {
+      "service": "mdi:message-off-outline"
+    },
+    "add": {
+      "service": "mdi:message-plus-outline"
+    }
   }
 }

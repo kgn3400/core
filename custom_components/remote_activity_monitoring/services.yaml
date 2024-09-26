@@ -1,0 +1,7 @@
+# Service ID
+get_remotes:
+# Service name as shown in UI
+# name: Update
+# Description of the service
+# description: Check for PyPi updates.
+

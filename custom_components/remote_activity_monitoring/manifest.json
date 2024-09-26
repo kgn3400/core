@@ -1,0 +1,17 @@
+{
+  "domain": "remote_activity_monitoring",
+  "name": "Remote activity monitoring",
+  "codeowners": [
+    "@kgn3400"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/kgn3400/remote_activity_monitoringt",
+  "homekit": {},
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/kgn3400/remote_activity_monitoring/issues",
+  "requirements": [],
+  "ssdp": [],
+  "version": "1.0.0",
+  "zeroconf": []
+}

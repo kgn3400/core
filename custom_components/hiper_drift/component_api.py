@@ -112,7 +112,7 @@ class ComponentApi:
 
         try:
             async with timeout(self.request_timeout):
-                response = await self.session.request("GET", ROOT_DRIFT_URL)
+                response = await self.session.get(ROOT_DRIFT_URL)
 
                 soup = await self.hass.async_add_executor_job(
                     BeautifulSoup, await response.text(), "lxml"
@@ -147,7 +147,7 @@ class ComponentApi:
                 ROOT_DRIFT_URL = "https://www.fail.xx"
 
             async with timeout(self.request_timeout):
-                response = await self.session.request("GET", url_region)
+                response = await self.session.get(url_region)
 
                 soup = await self.hass.async_add_executor_job(
                     BeautifulSoup, await response.text(), "lxml"

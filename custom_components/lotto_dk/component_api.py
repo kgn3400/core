@@ -110,7 +110,7 @@ class ComponentApi:
     async def _async_get_price_pool(self, url: str) -> int:
         try:
             async with timeout(self.request_timeout):
-                response = await self.session.request("GET", url)
+                response = await self.session.get(url)
                 soup = await self.hass.async_add_executor_job(
                     BeautifulSoup, await response.text(), "lxml"
                 )
