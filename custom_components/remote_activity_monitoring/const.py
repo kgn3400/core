@@ -19,6 +19,18 @@ CONF_MONITOR_ENTITY = "monitor_entity"
 
 CONF_ENTITY_IDS = "entity_ids"
 
+STATE_INIT = "initializing"
+STATE_CONNECTING = "connecting"
+STATE_CONNECTED = "connected"
+STATE_AUTH_INVALID = "auth_invalid"
+STATE_AUTH_REQUIRED = "auth_required"
+STATE_RECONNECTING = "reconnecting"
+STATE_DISCONNECTED = "disconnected"
+
+DEFAULT_MAX_MSG_SIZE = 16 * 1024 * 1024
+HEARTBEAT_INTERVAL = 20
+HEARTBEAT_TIMEOUT = 5
+
 
 class ComponentType(StrEnum):
     """Available entity component types."""

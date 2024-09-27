@@ -3,16 +3,13 @@
 
 from typing import Any
 
+from aiohttp import ClientSession
+
 from homeassistant import exceptions
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN
-
-API_URL = (
-    "{proto}://{host}:{port}/api/services/"
-    + DOMAIN
-    + "/get_remotes?return_response=true"
-)
 
 
 class ApiProblem(exceptions.HomeAssistantError):
@@ -40,19 +37,22 @@ class EndpointMissing(exceptions.HomeAssistantError):
 
 
 async def async_get_remote_activity_monitors(
-    hass, host, port, secure, access_token, verify_ssl
+    hass: HomeAssistant,
+    host: str,
+    port: int,
+    secure: bool,
+    access_token: str,
+    verify_ssl: bool,
 ) -> list[dict[str, Any]] | None:
     """Get remote activity monitors."""
-    url = API_URL.format(
-        proto="https" if secure else "http",
-        host=host,
-        port=port,
-    )
+
+    url = f'{"https" if secure else "http"}://{host}:{port}/api/services/{DOMAIN}/get_remotes?return_response=true'
+
     headers = {
         "Authorization": "Bearer " + access_token,
         "Content-Type": "application/json",
     }
-    session = async_get_clientsession(hass, verify_ssl)
+    session: ClientSession = async_get_clientsession(hass, verify_ssl)
 
     # Get remote activity monitors
     async with session.post(url, headers=headers) as resp:

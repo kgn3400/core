@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import voluptuous as vol
 
+from homeassistant.auth.providers.homeassistant import InvalidAuth
 from homeassistant.const import (
     CONF_ACCESS_TOKEN,
     CONF_HOST,
@@ -39,7 +40,7 @@ from .const import (
     ComponentType,
     StepType,
 )
-from .rest_api import async_get_remote_activity_monitors
+from .rest_api import ApiProblem, EndpointMissing, async_get_remote_activity_monitors
 
 
 # ------------------------------------------------------------------
@@ -49,19 +50,14 @@ async def _async_create_monitor_list(
 ) -> list[dict[str, Any]]:
     """Create a list of remotes to monitors."""
 
-    try:
-        monitors: list[dict[str, Any]] = await async_get_remote_activity_monitors(
-            handler.parent_handler.hass,
-            options[CONF_HOST],
-            options[CONF_PORT],
-            options[CONF_SECURE],
-            options[CONF_ACCESS_TOKEN],
-            options[CONF_VERIFY_SSL],
-        )
-        if len(monitors) == 0:
-            raise SchemaFlowError("no_monitors")
-    except Exception:  # noqa: BLE001
-        raise SchemaFlowError("invalid_port") from None
+    monitors: list[dict[str, Any]] = await async_get_remote_activity_monitors(
+        handler.parent_handler.hass,
+        options[CONF_HOST],
+        options[CONF_PORT],
+        options[CONF_SECURE],
+        options[CONF_ACCESS_TOKEN],
+        options[CONF_VERIFY_SSL],
+    )
 
     tmp_list: list[dict[str, str]] = [
         {"label": monitor["name"], "value": monitor["entity_id"]}
@@ -76,11 +72,6 @@ async def _create_form(
     step: StepType | None = None,
 ) -> vol.Schema:
     """Create a form for step/option."""
-
-    # tmp_monitors: list = [
-    #     {"label": "labMain", "value": "valMain"},
-    #     {"label": "labRemote", "value": "valRemote"},
-    # ]
 
     CONFIG_NAME = {
         vol.Required(
@@ -100,16 +91,6 @@ async def _create_form(
         ): bool,
     }
 
-    # CONFIG_OPTIONS = {
-    #     vol.Required(CONF_MONITOR_ENTITY, default=""): SelectSelector(
-    #         SelectSelectorConfig(
-    #             options=tmp_monitors,
-    #             sort=True,
-    #             mode=SelectSelectorMode.DROPDOWN,
-    #         )
-    #     ),
-    # }
-
     CONFIG_OPTIONS_ENTITIES = {
         vol.Required(
             CONF_ENTITY_IDS,
@@ -123,9 +104,12 @@ async def _create_form(
         case StepType.OPTIONS:
             match handler.options.get(CONF_COMPONENT_TYPE, ComponentType.MAIN):
                 case ComponentType.MAIN:
-                    # tmp_monitors = await _async_create_monitor_list(
-                    #     handler, handler.options
-                    # )
+                    try:
+                        tmp_monitors = await _async_create_monitor_list(
+                            handler, handler.options
+                        )
+                    except Exception:  # noqa: BLE001
+                        tmp_monitors = []
 
                     return vol.Schema(
                         {
@@ -133,9 +117,7 @@ async def _create_form(
                                 CONF_MONITOR_ENTITY, default=""
                             ): SelectSelector(
                                 SelectSelectorConfig(
-                                    options=await _async_create_monitor_list(
-                                        handler, handler.options
-                                    ),
+                                    options=tmp_monitors,
                                     sort=True,
                                     mode=SelectSelectorMode.DROPDOWN,
                                 )
@@ -193,10 +175,15 @@ async def _validate_input_main_url(
             handler, user_input
         )
 
-        if len(monitors) == 0:
-            raise SchemaFlowError("no_monitors")
-    except Exception:  # noqa: BLE001
-        raise SchemaFlowError("invalid_port") from None
+    except EndpointMissing:
+        raise SchemaFlowError("missing_endpoint") from None
+    except InvalidAuth:
+        raise SchemaFlowError("invalid_auth") from None
+    except ApiProblem:
+        raise SchemaFlowError("cannot_connect") from None
+
+    if len(monitors) == 0:
+        raise SchemaFlowError("no_monitors")
     return user_input
 
 

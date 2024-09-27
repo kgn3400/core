@@ -11,7 +11,13 @@
     },
     "error": {
       "missing_selection": "No entities selected",
-      "unknown": "Unexpected error"
+      "api_problem": "Bad response from server",
+      "cannot_connect": "Failed to connect to server",
+      "invalid_auth": "Invalid credentials",
+      "no_monitors": "No active monitors found",
+      "unsupported_version": "Unsupported version. At least version 0.111 is required",
+      "unknown": "An unknown error occurred",
+      "missing_endpoint": "You need to install Remote activity monitoring integration on the remote host"
     },
     "step": {
       "user": {

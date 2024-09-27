@@ -6,7 +6,13 @@ from datetime import datetime
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_ON
+from homeassistant.const import (
+    CONF_ACCESS_TOKEN,
+    CONF_HOST,
+    CONF_PORT,
+    CONF_VERIFY_SSL,
+    STATE_ON,
+)
 from homeassistant.core import (
     Event,
     HomeAssistant,
@@ -27,6 +33,8 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_COMPONENT_TYPE,
     CONF_ENTITY_IDS,
+    CONF_MONITOR_ENTITY,
+    CONF_SECURE,
     DOMAIN,
     DOMAIN_NAME,
     LOGGER,
@@ -34,6 +42,7 @@ from .const import (
     ComponentType,
 )
 from .entity import ComponentEntity
+from .websocket_api import RemoteWebsocketConnection
 
 
 # ------------------------------------------------------
@@ -46,7 +55,7 @@ async def async_setup_entry(
 
     match entry.options[CONF_COMPONENT_TYPE]:
         case ComponentType.MAIN:
-            pass
+            async_add_entities([MainAcitvityMonitorBinarySensor(hass, entry)])
         case ComponentType.REMOTE:
             async_add_entities([RemoteAcitvityMonitorBinarySensor(hass, entry)])
 
@@ -81,9 +90,9 @@ class RemoteAcitvityMonitorBinarySensor(ComponentEntity, BinarySensorEntity):
         self.translation_key = TRANSLATION_KEY
 
         self.monitor_activity_on = False
-        self.monitor_activity_name: str = ""
+        self.monitor_activity_friendly_name: str = ""
         self.monitor_activity_entity_id: str = ""
-        self.monitor_activity_last_update: datetime = dt_util.now()
+        self.monitor_activity_last_updated: datetime = dt_util.now()
 
         registry = er.async_get(hass)
         self.monitor_activity_entities: list[str] = er.async_validate_entity_ids(
@@ -123,20 +132,19 @@ class RemoteAcitvityMonitorBinarySensor(ComponentEntity, BinarySensorEntity):
         event: Event[EventStateChangedData],
     ) -> None:
         """Handle state changes on the observed device."""
+
         if (tmp_state := event.data["new_state"]) is None:
             return
 
-        self.monitor_activity_on = bool(tmp_state.state == STATE_ON)
-        self.monitor_activity_name = tmp_state.name
+        self.monitor_activity_on = tmp_state.state == STATE_ON
+        self.monitor_activity_friendly_name = tmp_state.name
         self.monitor_activity_entity_id = tmp_state.entity_id
-        self.monitor_activity_last_update = dt_util.now()
+        self.monitor_activity_last_updated = dt_util.now()
         await self.coordinator.async_refresh()
 
     # ------------------------------------------------------
     async def async_added_to_hass(self) -> None:
         """Complete device setup after being added to hass."""
-
-        # await super().async_added_to_hass()
 
         await self.coordinator.async_config_entry_first_refresh()
 
@@ -262,9 +270,202 @@ class RemoteAcitvityMonitorBinarySensor(ComponentEntity, BinarySensorEntity):
         """
 
         return {
-            "last_monitor_activity_name": self.monitor_activity_name,
-            "last_monitor_activity_entity_id": self.monitor_activity_entity_id,
-            "last_monitor_activity_last_update": self.monitor_activity_last_update.isoformat(),
+            "monitor_activity_friendly_name": self.monitor_activity_friendly_name,
+            "monitor_activity_entity_id": self.monitor_activity_entity_id,
+            "monitor_activity_last_updated": self.monitor_activity_last_updated.isoformat(),
+        }
+
+    # ------------------------------------------------------
+    @property
+    def should_poll(self) -> bool:
+        """No need to poll. Coordinator notifies entity of updates."""
+        return False
+
+    # ------------------------------------------------------
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.last_update_success
+
+    # ------------------------------------------------------
+    async def async_update(self) -> None:
+        """Update the entity. Only used by the generic entity update service."""
+        await self.coordinator.async_request_refresh()
+
+
+# ------------------------------------------------------
+# ------------------------------------------------------
+class MainAcitvityMonitorBinarySensor(ComponentEntity, BinarySensorEntity):
+    """Sensor class for the main activity monitoring."""
+
+    # ------------------------------------------------------
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+    ) -> None:
+        """Binary sensor."""
+        self.entry: ConfigEntry = entry
+        self.hass = hass
+
+        self.translation_key = TRANSLATION_KEY
+        self.remote_activity_state: bool = False
+        self.remote_activity_friendly_name: str = ""
+        self.remote_activity_entity_id: str = ""
+        self.remote_activity_last_updated: datetime = dt_util.now()
+
+        self.coordinator: DataUpdateCoordinator = DataUpdateCoordinator(
+            self.hass,
+            LOGGER,
+            name=DOMAIN,
+            # update_interval=timedelta(minutes=1),
+            update_method=self.async_refresh,
+        )
+
+        super().__init__(self.coordinator, entry)
+
+        self.websocket_connection: RemoteWebsocketConnection = (
+            RemoteWebsocketConnection(
+                self.hass,
+                self.entry.options.get(CONF_HOST),
+                self.entry.options.get(CONF_PORT),
+                self.entry.options.get(CONF_ACCESS_TOKEN),
+                self.entry.options.get(CONF_SECURE),
+                self.entry.options.get(CONF_VERIFY_SSL),
+            )
+        )
+
+    # ------------------------------------------------------
+    async def async_will_remove_from_hass(self) -> None:
+        """When removed from hass."""
+        await self.websocket_connection.async_stop()
+
+    # ------------------------------------------------------
+    async def async_added_to_hass(self) -> None:
+        """Complete device setup after being added to hass."""
+
+        # await super().async_added_to_hass()
+
+        await self.coordinator.async_config_entry_first_refresh()
+
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
+
+        self.async_on_remove(start.async_at_started(self.hass, self.hass_started))
+
+    # ------------------------------------------------------
+    async def async_refresh(self) -> None:
+        """Refresh."""
+
+    # ------------------------------------------------------
+    async def hass_started(self, _event: Event) -> None:
+        """Hass started."""
+        await self.websocket_connection.async_connect(self.async_connected)
+
+    # ------------------------------------------------------------------
+    async def async_connected(self) -> None:
+        """Host connection established."""
+
+        await self.websocket_connection.call(
+            self.async_handle_event_message,
+            "subscribe_trigger",
+            trigger={
+                "platform": "state",
+                "entity_id": self.entry.options.get(CONF_MONITOR_ENTITY),
+            },
+        )
+
+    # ------------------------------------------------------------------
+    async def async_handle_event_message(self, message: dict) -> None:
+        """Handle event from host."""
+
+        match message["type"]:
+            case "result":
+                pass
+            case "event":
+                to_state: dict = message["event"]["variables"]["trigger"]["to_state"]
+
+    # ------------------------------------------------------------------
+    async def async_create_issue_entity(
+        self, entity_id: str, translation_key: str
+    ) -> None:
+        """Create issue on entity."""
+
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            DOMAIN_NAME + datetime.now().isoformat(),
+            issue_domain=DOMAIN,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=translation_key,
+            translation_placeholders={
+                "entity": entity_id,
+                "state_updated_helper": self.entity_id,
+            },
+        )
+
+    # ------------------------------------------------------
+    @property
+    def name(self) -> str:
+        """Name.
+
+        Returns:
+            str: Name of sensor
+
+        """
+        return self.entry.title
+
+    # ------------------------------------------------------
+    @property
+    def unique_id(self) -> str:
+        """Unique id.
+
+        Returns:
+            str: Unique id
+
+        """
+
+        return self.entry.entry_id
+
+    # ------------------------------------------------------
+    @property
+    def icon(self) -> str:
+        """Icon.
+
+        Returns:
+            str: Icon name
+
+        """
+
+        return "mdi:alert-outline"
+
+    # ------------------------------------------------------
+    @property
+    def is_on(self) -> bool:
+        """Get the state."""
+
+        return self.remote_activity_state
+
+    # ------------------------------------------------------
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Extra state attributes.
+
+        Returns:
+            dict: _description_
+
+        """
+
+        self.remote_activity_friendly_name: str = ""
+        self.remote_activity_entity_id: str = ""
+        self.remote_activity_last_updated: datetime = dt_util.now()
+
+        return {
+            "remote_activity_friendly_name": self.remote_activity_friendly_name,
+            "remote_activity_entity_id": self.remote_activity_entity_id,
+            "remote_activity_last_updated": self.remote_activity_last_updated,
         }
 
     # ------------------------------------------------------
