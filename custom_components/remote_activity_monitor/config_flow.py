@@ -14,10 +14,11 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_PORT,
     CONF_VERIFY_SSL,
+    STATE_OFF,
+    STATE_ON,
     Platform,
 )
 from homeassistant.core import callback
-from homeassistant.helpers import selector
 from homeassistant.helpers.schema_config_entry_flow import (
     SchemaCommonFlowHandler,
     SchemaConfigFlowHandler,
@@ -26,21 +27,32 @@ from homeassistant.helpers.schema_config_entry_flow import (
     SchemaFlowMenuStep,
 )
 from homeassistant.helpers.selector import (
+    BooleanSelector,
+    DurationSelector,
+    DurationSelectorConfig,
+    EntitySelector,
+    EntitySelectorConfig,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
 )
 
 from .const import (
+    CONF_ALL_ENTITIES_ON,
     CONF_COMPONENT_TYPE,
+    CONF_DURATION_WAIT_UPDATE,
     CONF_ENTITY_IDS,
     CONF_MONITOR_ENTITY,
+    CONF_MONITOR_STATE_CHANGED_TYPE,
     CONF_SECURE,
     DOMAIN,
+    STATE_BOTH,
+    TRANSLATION_KEY_STATE_MONTOR_TYPE,
     ComponentType,
     StepType,
 )
-from .rest_api import ApiProblem, EndpointMissing, async_get_remote_activity_monitors
+from .rest_api import ApiProblem, EndpointMissing, RestApi
 
 
 # ------------------------------------------------------------------
@@ -50,12 +62,12 @@ async def _async_create_monitor_list(
 ) -> list[dict[str, Any]]:
     """Create a list of remotes to monitors."""
 
-    monitors: list[dict[str, Any]] = await async_get_remote_activity_monitors(
+    monitors: list[dict[str, Any]] = await RestApi().async_get_remote_activity_monitors(
         handler.parent_handler.hass,
         options[CONF_HOST],
         options[CONF_PORT],
-        options[CONF_SECURE],
         options[CONF_ACCESS_TOKEN],
+        options[CONF_SECURE],
         options[CONF_VERIFY_SSL],
     )
 
@@ -76,7 +88,7 @@ async def _create_form(
     CONFIG_NAME = {
         vol.Required(
             CONF_NAME,
-        ): selector.TextSelector(),
+        ): TextSelector(),
     }
 
     CONFIG_URL_TOKEN = {
@@ -91,12 +103,16 @@ async def _create_form(
         ): bool,
     }
 
-    CONFIG_OPTIONS_ENTITIES = {
+    CONFIG_REMOTE_OPTIONS_ENTITIES = {
+        vol.Required(
+            CONF_ALL_ENTITIES_ON,
+            default=False,
+        ): BooleanSelector(),
         vol.Required(
             CONF_ENTITY_IDS,
             default=handler.options.get(CONF_ENTITY_IDS, []),
-        ): selector.EntitySelector(
-            selector.EntitySelectorConfig(domain=Platform.BINARY_SENSOR, multiple=True),
+        ): EntitySelector(
+            EntitySelectorConfig(domain=Platform.BINARY_SENSOR, multiple=True),
         ),
     }
 
@@ -122,12 +138,31 @@ async def _create_form(
                                     mode=SelectSelectorMode.DROPDOWN,
                                 )
                             ),
+                            vol.Optional(CONF_DURATION_WAIT_UPDATE): DurationSelector(
+                                DurationSelectorConfig(
+                                    enable_day=True, allow_negative=False
+                                )
+                            ),
+                            vol.Optional(
+                                CONF_MONITOR_STATE_CHANGED_TYPE, default=STATE_BOTH
+                            ): SelectSelector(
+                                SelectSelectorConfig(
+                                    options=[
+                                        STATE_BOTH,
+                                        STATE_ON,
+                                        STATE_OFF,
+                                    ],
+                                    sort=True,
+                                    mode=SelectSelectorMode.DROPDOWN,
+                                    translation_key=TRANSLATION_KEY_STATE_MONTOR_TYPE,
+                                )
+                            ),
                         }
                     )
                 case ComponentType.REMOTE:
                     return vol.Schema(
                         {
-                            **CONFIG_OPTIONS_ENTITIES,
+                            **CONFIG_REMOTE_OPTIONS_ENTITIES,
                         }
                     )
 
@@ -144,14 +179,14 @@ async def _create_form(
                     return vol.Schema(
                         {
                             **CONFIG_NAME,
-                            **CONFIG_OPTIONS_ENTITIES,
+                            **CONFIG_REMOTE_OPTIONS_ENTITIES,
                         }
                     )
 
 
 MENU_OPTIONS = [
-    ComponentType.MAIN,
     ComponentType.REMOTE,
+    ComponentType.MAIN,
 ]
 
 

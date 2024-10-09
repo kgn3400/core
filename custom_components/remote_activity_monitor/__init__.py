@@ -1,4 +1,4 @@
-"""The Remote activity monitoring integration."""
+"""The Remote activity monitor integration."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from .const import DOMAIN
 
 # ------------------------------------------------------------------
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Remote activity monitoring from a config entry."""
+    """Set up Remote activity monitor from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
     entry.async_on_unload(entry.add_update_listener(update_listener))

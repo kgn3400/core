@@ -1,5 +1,5 @@
 # Service ID
-get_remotes:
+get_remote_entities:
 # Service name as shown in UI
 # name: Update
 # Description of the service

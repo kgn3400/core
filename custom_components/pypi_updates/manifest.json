@@ -1,22 +1,16 @@
 {
   "domain": "pypi_updates",
   "name": "PyPi updates",
-  "codeowners": [
-    "@kgn3400"
-  ],
+  "codeowners": ["@kgn3400"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/kgn3400/pypi_updates",
   "homekit": {},
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/kgn3400/pypi_updates/issues",
-  "requirements": [
-    "aiofiles",
-    "orjson",
-    "jsonpickle"
-  ],
+  "requirements": ["aiofiles", "orjson", "jsonpickle"],
   "single_config_entry": true,
   "ssdp": [],
-  "version": "1.0.25",
+  "version": "1.0.26",
   "zeroconf": []
 }
