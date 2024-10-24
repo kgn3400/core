@@ -1,10 +1,10 @@
-"""Connect two Home Assistant instances via the Websocket API."""
-# Inspiration and parts Borrow from https://github.com/custom-components/remote_homeassistant
+"""Websocket API for connecting toHome Assistant."""
+# Inspiration and parts borrowed from https://github.com/custom-components/remote_homeassistant
 
-# import aiohttp
 import asyncio
 from collections.abc import Callable
 import contextlib
+from enum import StrEnum
 import inspect
 from typing import Any
 
@@ -16,18 +16,21 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import (
-    DEFAULT_MAX_MSG_SIZE,
-    HEARTBEAT_INTERVAL,
-    HEARTBEAT_TIMEOUT,
-    LOGGER,
-    STATE_AUTH_INVALID,
-    STATE_AUTH_REQUIRED,
-    STATE_CONNECTED,
-    STATE_CONNECTING,
-    STATE_DISCONNECTED,
-    STATE_RECONNECTING,
-)
+from .const import DEFAULT_MAX_MSG_SIZE, HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT, LOGGER
+
+
+# ------------------------------------------------------
+# ------------------------------------------------------
+class ConnectionStateType(StrEnum):
+    """Connection state types."""
+
+    STATE_INIT = "initializing"
+    STATE_CONNECTING = "connecting"
+    STATE_CONNECTED = "connected"
+    STATE_AUTH_INVALID = "auth_invalid"
+    STATE_AUTH_REQUIRED = "auth_required"
+    STATE_RECONNECTING = "reconnecting"
+    STATE_DISCONNECTED = "disconnected"
 
 
 # ------------------------------------------------------
@@ -38,14 +41,16 @@ class RemoteWebsocketConnection:
     # ------------------------------------------------------
     def __init__(
         self,
-        hass,
+        hass: HomeAssistant,
         host: str,
         port: int,
         access_token: str,
         secure: bool = False,
         verify_ssl: bool = False,
-        on_connected: Callable[[Any], Any] | None = None,
-        on_disconnected: Callable[[Any], Any] | None = None,
+        on_connected: Callable[[], None] | None = None,
+        on_disconnected: Callable[[], None] | None = None,
+        on_connection_state_changed: Callable[[ConnectionStateType], None]
+        | None = None,
     ) -> None:
         """Initialize the connection."""
         self._hass: HomeAssistant = hass
@@ -54,26 +59,30 @@ class RemoteWebsocketConnection:
         self._access_token: str = access_token
         self._secure: bool = secure
         self._verify_ssl: bool = verify_ssl
-        self._on_connected: Callable[[Any], Any] | None = on_connected
-        self._on_disconnected: Callable[[Any], Any] | None = on_disconnected
+        self._on_connected: Callable[[], None] | None = on_connected
+        self._on_disconnected: Callable[[], None] | None = on_disconnected
+        self._on_connection_state_changed: (
+            Callable[[ConnectionStateType], None] | None
+        ) = on_connection_state_changed
 
         self._connection: ClientWebSocketResponse | None = None
         self._heartbeat_task = None
         self._is_stopping: bool = False
         self._handlers: dict = {}
 
-        self.set_connection_state(STATE_CONNECTING)
-
-        self.__id = 1
+        self.__id: int = 1
 
         self._background_tasks = set()
 
     # ------------------------------------------------------
-    def set_connection_state(self, state):
-        """Change current connection state."""
-        # todo: Do we need this?
-        # signal = f"remote_homeassistant_{self._entry.unique_id}"
-        # async_dispatcher_send(self._hass, signal, state)
+    async def async_connection_state_changed_event(self, state: ConnectionStateType):
+        """Report connection state and Change."""
+
+        if self._on_connection_state_changed is not None:
+            if inspect.iscoroutinefunction(self._on_connection_state_changed):
+                await self._on_connection_state_changed(state)
+            else:
+                self._on_connection_state_changed(state)
 
     # ------------------------------------------------------
     @callback
@@ -87,11 +96,15 @@ class RemoteWebsocketConnection:
         self,
         on_connected: Callable[[Any], Any] | None = None,
         on_disconnected: Callable[[Any], Any] | None = None,
+        on_connection_state_changed: Callable[[Any], Any] | None = None,
     ) -> None:
         """Connect to remote home-assistant websocket..."""
 
         self._on_connected: Callable[[Any], Any] | None = on_connected
         self._on_disconnected: Callable[[Any], Any] | None = on_disconnected
+        self._on_connection_state_changed: Callable[[Any], Any] | None = (
+            on_connection_state_changed
+        )
 
         # ------------------------------------------------------
         async def _async_stop_handler(event):
@@ -101,7 +114,9 @@ class RemoteWebsocketConnection:
         url = self._get_url()
 
         session = async_get_clientsession(self._hass, self._verify_ssl)
-        self.set_connection_state(STATE_CONNECTING)
+        await self.async_connection_state_changed_event(
+            ConnectionStateType.STATE_CONNECTING
+        )
         self._handlers: dict = {}
         self.__id = 1
 
@@ -113,7 +128,9 @@ class RemoteWebsocketConnection:
                 )
             except aiohttp.client_exceptions.ClientError:
                 LOGGER.error("Could not connect to %s, retry in 10 seconds...", url)
-                self.set_connection_state(STATE_RECONNECTING)
+                await self.async_connection_state_changed_event(
+                    ConnectionStateType.STATE_RECONNECTING
+                )
                 await asyncio.sleep(10)
             else:
                 LOGGER.info("Connected to home-assistant websocket at %s", url)
@@ -121,13 +138,13 @@ class RemoteWebsocketConnection:
 
         self._hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop_handler)
 
-        tmp_task = asyncio.ensure_future(self._recv())
+        tmp_task = asyncio.ensure_future(self._async_recv())
         self._background_tasks.add(tmp_task)
 
-        self._heartbeat_task = self._hass.loop.create_task(self._heartbeat_loop())
+        self._heartbeat_task = self._hass.loop.create_task(self._saync_heartbeat_loop())
 
     # ------------------------------------------------------
-    async def _heartbeat_loop(self):
+    async def _saync_heartbeat_loop(self):
         """Send periodic heartbeats to remote instance."""
         while self._connection is not None and not self._connection.closed:
             await asyncio.sleep(HEARTBEAT_INTERVAL)
@@ -139,7 +156,10 @@ class RemoteWebsocketConnection:
                 LOGGER.debug("Got pong: %s", message)
                 self._event.set()
 
-            await self.call(resp, "ping")
+                # Does this part give anything memory wise or does only benefit debugging?
+                del self._handlers[message["id"]]
+
+            await self.async_call(resp, "ping")
 
             try:
                 await asyncio.wait_for(self._event.wait(), HEARTBEAT_TIMEOUT)
@@ -171,7 +191,7 @@ class RemoteWebsocketConnection:
         return _id
 
     # ------------------------------------------------------
-    async def call(self, handler, message_type, **extra_args) -> None:
+    async def async_call(self, handler, message_type, **extra_args) -> None:
         """Call a websocket on the remote instance."""
         if self._connection is None:
             LOGGER.error("No remote websocket connection")
@@ -189,10 +209,10 @@ class RemoteWebsocketConnection:
             )
         except aiohttp.client_exceptions.ClientError as err:
             LOGGER.error("remote websocket connection closed: %s", err)
-            await self._disconnected()
+            await self._async_disconnected()
 
     # ------------------------------------------------------
-    async def _disconnected(self):
+    async def _async_disconnected(self):
         """Cleanup on disconnect."""
 
         if self._on_disconnected is not None:
@@ -207,16 +227,24 @@ class RemoteWebsocketConnection:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._heartbeat_task
 
-        self.set_connection_state(STATE_DISCONNECTED)
+        await self.async_connection_state_changed_event(
+            ConnectionStateType.STATE_DISCONNECTED
+        )
         self._heartbeat_task = None
 
         if not self._is_stopping:
-            tmp_task = asyncio.ensure_future(self.async_connect())
+            tmp_task = asyncio.ensure_future(
+                self.async_connect(
+                    self._on_connected,
+                    self._on_disconnected,
+                    self._on_connection_state_changed,
+                )
+            )
             # todo: Skal background task nulstilles?
             self._background_tasks.add(tmp_task)
 
     # ------------------------------------------------------
-    async def _recv(self):
+    async def _async_recv(self):
         while self._connection is not None and not self._connection.closed:
             try:
                 data = await self._connection.receive()
@@ -255,7 +283,9 @@ class RemoteWebsocketConnection:
             LOGGER.debug("received: %s", message)
 
             if message["type"] == api.TYPE_AUTH_OK:
-                self.set_connection_state(STATE_CONNECTED)
+                await self.async_connection_state_changed_event(
+                    ConnectionStateType.STATE_CONNECTED
+                )
 
                 if self._on_connected is not None:
                     if inspect.iscoroutinefunction(self._on_connected):
@@ -271,7 +301,9 @@ class RemoteWebsocketConnection:
                     }
                 else:
                     LOGGER.error("Access token required, but not provided")
-                    self.set_connection_state(STATE_AUTH_REQUIRED)
+                    await self.async_connection_state_changed_event(
+                        ConnectionStateType.STATE_AUTH_REQUIRED
+                    )
                     return
                 try:
                     await self._connection.send_json(json_data)
@@ -281,7 +313,9 @@ class RemoteWebsocketConnection:
 
             elif message["type"] == api.TYPE_AUTH_INVALID:
                 LOGGER.error("Auth invalid, check your access token")
-                self.set_connection_state(STATE_AUTH_INVALID)
+                await self.async_connection_state_changed_event(
+                    ConnectionStateType.STATE_AUTH_INVALID
+                )
                 await self._connection.close()
                 return
 
@@ -293,4 +327,4 @@ class RemoteWebsocketConnection:
                     else:
                         handler(message)
 
-        await self._disconnected()
+        await self._async_disconnected()

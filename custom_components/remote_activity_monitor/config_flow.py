@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from enum import StrEnum
 from typing import Any, cast
 
 import voluptuous as vol
@@ -47,12 +48,29 @@ from .const import (
     CONF_MONITOR_STATE_CHANGED_TYPE,
     CONF_SECURE,
     DOMAIN,
+    SERVICE_GET_REMOTE_ENTITIES,
     STATE_BOTH,
     TRANSLATION_KEY_STATE_MONTOR_TYPE,
-    ComponentType,
-    StepType,
 )
 from .rest_api import ApiProblem, EndpointMissing, RestApi
+
+
+# ------------------------------------------------------------------
+# ------------------------------------------------------------------
+class ComponentType(StrEnum):
+    """Available entity component types."""
+
+    MAIN = "main"
+    REMOTE = "remote"
+
+
+# ------------------------------------------------------------------
+# ------------------------------------------------------------------
+class StepType(StrEnum):
+    """Step types."""
+
+    CONFIG = "config"
+    OPTIONS = "options"
 
 
 # ------------------------------------------------------------------
@@ -62,14 +80,19 @@ async def _async_create_monitor_list(
 ) -> list[dict[str, Any]]:
     """Create a list of remotes to monitors."""
 
-    monitors: list[dict[str, Any]] = await RestApi().async_get_remote_activity_monitors(
-        handler.parent_handler.hass,
-        options[CONF_HOST],
-        options[CONF_PORT],
-        options[CONF_ACCESS_TOKEN],
-        options[CONF_SECURE],
-        options[CONF_VERIFY_SSL],
-    )
+    monitors: list[dict[str, Any]] = (
+        await RestApi().async_post_service(
+            handler.parent_handler.hass,
+            options[CONF_HOST],
+            options[CONF_PORT],
+            options[CONF_ACCESS_TOKEN],
+            options[CONF_SECURE],
+            options[CONF_VERIFY_SSL],
+            DOMAIN,
+            SERVICE_GET_REMOTE_ENTITIES,
+            True,
+        )
+    )["remotes"]
 
     tmp_list: list[dict[str, str]] = [
         {"label": monitor["name"], "value": monitor["entity_id"]}
@@ -112,7 +135,10 @@ async def _create_form(
             CONF_ENTITY_IDS,
             default=handler.options.get(CONF_ENTITY_IDS, []),
         ): EntitySelector(
-            EntitySelectorConfig(domain=Platform.BINARY_SENSOR, multiple=True),
+            EntitySelectorConfig(
+                domain=[Platform.BINARY_SENSOR, Platform.SWITCH, "input_boolean"],
+                multiple=True,
+            ),
         ),
     }
 

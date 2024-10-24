@@ -1,0 +1,20 @@
+{
+    "entity": {
+        "binary_sensor": {
+            "remote_activity_monitor": {
+                "default": "mdi:alert-outline",
+                "state": {
+                    "on": "mdi:alert-plus-outline"
+                }
+            }
+        }
+    },
+    "services": {
+        "main_on_switch": {
+            "service": "mdi:toggle-switch-outline"
+        },
+        "update_main_options": {
+            "service": "mdi:update"
+        }
+    }
+}

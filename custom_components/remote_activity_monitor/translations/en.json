@@ -23,8 +23,8 @@
         "title": "Remote activity monitor",
         "description": "The Remote activity monitor allows you to monitor the status of chosen binary sensors on a remote Home Assistant devices.",
         "menu_options": {
-          "main": "Add main acivity monitor integration",
-          "remote": "Add remote acivity monitor integration"
+          "main": "Add main activity monitor integration",
+          "remote": "Add remote activity monitor integration"
         }
       },
       "main": {
@@ -54,7 +54,7 @@
           "entity_ids": "Entities this binary sensor tracks"
         },
         "data_description": {
-          "all_entities_on": "If enabled, state is on only on if all entites are on. If disabled, state is on if any entities is on."
+          "all_entities_on": "If enabled, state is on only on if all entities are on. If disabled, state is on if any entities is on."
         }
       }
     }
@@ -81,7 +81,7 @@
           "entity_ids": "Entities this binary sensor tracks"
         },
         "data_description": {
-          "all_entities_on": "If enabled, state is on only on if all entites are on. If disabled, state is on if any entities is on."
+          "all_entities_on": "If enabled, state is on only on if all entities are on. If disabled, state is on if any entities is on."
         }
       }
     }
@@ -95,14 +95,97 @@
       }
     }
   },
+  "entity": {
+    "binary_sensor": {
+      "remote_activity_monitor": {
+        "state_attributes": {
+          "monitor_activity_entity_id": {
+            "name": "Monitor activity entity id"
+          },
+          "monitor_activity_friendly_name": {
+            "name": "Monitor activity friendly name"
+          },
+          "monitor_activity_last_updated": {
+            "name": "Monitor activity last updated"
+          },
+          "remote_activity_friendly_name": {
+            "name": "Remote activity friendly name"
+          },
+          "remote_activity_entity_id": {
+            "name": "Remote activity entity id"
+          },
+          "remote_activity_last_updated": {
+            "name": "Remote activity last updated"
+          },
+          "remote_activity_last_updated_duration": {
+            "name": "Remote activity last updated duration"
+          },
+          "remote_activity_pause": {
+            "name": "Remote activity pause"
+          },
+          "main_monitor_last_updated": {
+            "name": "Activity monitor last updated"
+          },
+          "main_monitor_wait_duration_left": {
+            "name": "Activity monitor wait duration left"
+          },
+          "main_monitor_pause": {
+            "name": "Activity monitor pause"
+          }
+        }
+      }
+    }
+  },
+  "device": {
+    "main_device": {
+      "name": "Activity monitor"
+    },
+    "remote_device": {
+      "name": "Remote activity monitor"
+    }
+  },
+  "services": {
+    "main_on_switch": {
+      "description": "Turns on/off the main activity activated switch.",
+      "name": "Main activity activated switch",
+      "fields": {
+        "main_on_switch": {
+          "description": "Turns on/off the main activity activated switch.",
+          "name": "Main activity activated switch"
+        }
+      }
+    },
+    "update_main_options": {
+      "description": "Update main activity monitor options.",
+      "name": "Update options",
+      "fields": {
+        "duration_wait_update": {
+          "description": "Duration before state is marked as changed.",
+          "name": "Duration before state is marked as changed"
+        },
+        "monitor_state_changed_type": {
+          "description": "Monitor state changed.",
+          "name": "Monitor state changed"
+        },
+        "save_options": {
+          "description": "Save options.",
+          "name": "Save options"
+        }
+      }
+    }
+  },
   "issues": {
     "remote_missing_entity": {
       "description": "It looks like either entity `{entity}` has been deleted or renamed, which are used in Remote activity monitor integration `{integration}`. \n\n Please fix this problem.",
       "title": "Remote activity monitor: Entity deleted or renamed"
     },
     "main_missing_entity": {
-      "description": "It looks like either entity `{entity}` has been deleted or renamed, which are used in Main activity monitor integration `{integration}`. \n\n Please fix this problem.",
+      "description": "It looks like either entity `{entity}` has been deleted or renamed, which are used in main activity monitor integration `{integration}`. \n\n Please fix this problem.",
       "title": "Main activity monitor: Entity deleted or renamed"
+    },
+    "main_connection_error": {
+      "description": "It looks like there is a problem connecting to the remote activity monitor, which are used in main activity monitor integration `{integration}`. \n\n Please fix this problem.",
+      "title": "Main activity monitor: Connection error"
     }
   }
 }

@@ -24,7 +24,7 @@
         "description": "Fjernovervågning af aktivitet giver dig mulighed for at overvåge status for valgte binære sensorer på eksterne Home Assistant-enheder.",
         "menu_options": {
           "main": "Tilføj hovedintegration fjernovervågning af aktivitet",
-          "remote": "Tilføj fjernintegration Fjernovervågning af aktivitet"
+          "remote": "Tilføj fjernintegration fjernovervågning af aktivitet"
         }
       },
       "main": {
@@ -95,6 +95,85 @@
       }
     }
   },
+  "entity": {
+    "binary_sensor": {
+      "remote_activity_monitor": {
+        "state_attributes": {
+          "monitor_activity_entity_id": {
+            "name": "Overvåget aktivitet enheds-id"
+          },
+          "monitor_activity_friendly_name": {
+            "name": "Overvåget aktivitet venligt navn"
+          },
+          "monitor_activity_last_updated": {
+            "name": "Overvåget aktivitet sidst opdateret"
+          },
+          "remote_activity_friendly_name": {
+            "name": "Fjernovervåget aktivitet venligt navn"
+          },
+          "remote_activity_entity_id": {
+            "name": "Fjernovervåget aktivitet enheds-id"
+          },
+          "remote_activity_last_updated": {
+            "name": "Fjernovervåget aktivitet sidst opdateret"
+          },
+          "remote_activity_last_updated_duration": {
+            "name": "Fjernovervåget aktivitet sidst opdateret varighed"
+          },
+          "remote_activity_pause": {
+            "name": "Fjernovervåget aktivitet pause"
+          },
+          "main_monitor_last_updated": {
+            "name": "Aktivitet overvåger sidst opdateret"
+          },
+          "main_monitor_wait_duration_left": {
+            "name": "Aktivitet overvåger varighed tilbage"
+          },
+          "main_monitor_pause": {
+            "name": "Aktivitet overvåger pause"
+          }
+        }
+      }
+    }
+  },
+  "device": {
+    "main_device": {
+      "name": "Overvågning af aktivitet"
+    },
+    "remote_device": {
+      "name": "Fjernovervågning af aktivitet"
+    }
+  },
+  "services": {
+    "main_on_switch": {
+      "description": "Tænd/sluk for hovedovervågning aktiveret.",
+      "name": "Hovedovervågning aktiveret",
+      "fields": {
+        "main_on_switch": {
+          "description": "Tænd/sluk for hovedovervågning aktiveret.",
+          "name": "Hovedovervågning aktiveret"
+        }
+      }
+    },
+    "update_main_options": {
+      "description": "Opdater hovedovervågning aktivitet konfiguration.",
+      "name": "Opdater konfiguration",
+      "fields": {
+        "duration_wait_update": {
+          "description": "Varighed før tilstand markeres som ændret.",
+          "name": "Varighed før tilstand markeres som ændret"
+        },
+        "monitor_state_changed_type": {
+          "description": "Overvågning af tilstandsændring.",
+          "name": "Overvågning af tilstandsændring"
+        },
+        "save_options": {
+          "description": "Gem konfiguration.",
+          "name": "Gem konfiguration"
+        }
+      }
+    }
+  },
   "issues": {
     "remote_missing_entity": {
       "description": "Det ser ud til, at enheden `{entity}` enten er blevet slettet eller omdøbt, hvilket bruges i integrationen til fjernovervågning af aktivitet `{integration}`. \n\n Venligst ret denne fejl.",
@@ -102,7 +181,11 @@
     },
     "main_missing_entity": {
       "description": "Det ser ud til, at enheden `{entity}` enten er blevet slettet eller omdøbt, hvilket bruges i hovedintegrationen til aktivitetsovervågning `{integration}`. \n\n Venligst ret denne fejl.",
-      "title": "Hovedaktivit monitor: Enhed slettet eller omdøbt"
+      "title": "Hovedovervågning monitor: Enhed slettet eller omdøbt"
+    },
+    "main_connection_error": {
+      "description": "Det ser ud til at der et problem med at forbinde til fjernovervågning enheden, hvilket bruges i hovedintegrationen til aktivitetsovervågning `{integration}`. \n\n Venligst ret denne fejl.",
+      "title": "Hovedovervågning monitor: Forbindelses fejl"
     }
   }
 }
