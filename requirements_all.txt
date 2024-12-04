@@ -1127,10 +1127,10 @@ hole==0.8.0
 holidays==0.62
 
 # homeassistant.components.frontend
-home-assistant-frontend==20241127.3
+home-assistant-frontend==20241127.4
 
 # homeassistant.components.conversation
-home-assistant-intents==2024.12.2
+home-assistant-intents==2024.12.4
 
 # homeassistant.components.home_connect
 homeconnect==0.8.0
@@ -1247,7 +1247,7 @@ kegtron-ble==0.4.0
 kiwiki-client==0.1.1
 
 # homeassistant.components.knocki
-knocki==0.3.5
+knocki==0.4.2
 
 # homeassistant.components.knx
 knx-frontend==2024.11.16.205004
