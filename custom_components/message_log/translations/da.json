@@ -27,7 +27,7 @@
           "markdown_message_list_count": "Markdown meddelelse liste antal",
           "order_by_message_level": "Sorter efter meddelelses niveau",
           "listen_to_timer_trigger": "Brug Timer hjælper som rotationsudløser",
-          "restart_timer": ""
+          "restart_timer": "Genstart Timer hjælper automatisk"
         }
       }
     }

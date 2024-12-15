@@ -5,19 +5,17 @@ from __future__ import annotations
 from datetime import timedelta
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, start
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from . import CommonConfigEntry
 from .component_api import ComponentApi
 from .const import (
     CONF_LISTEN_TO_TIMER_TRIGGER,
     CONF_MARKDOWN_MESSAGE_LIST_COUNT,
     CONF_RESTART_TIMER,
     CONF_SCROLL_MESSAGES_EVERY_MINUTES,
-    DOMAIN,
     TRANSLATION_KEY,
     RefreshType,
 )
@@ -29,23 +27,17 @@ from .timer_trigger import TimerTrigger
 # ------------------------------------------------------
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: CommonConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Sensor setup."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    component_api: ComponentApi = ComponentApi(
-        hass,
-        coordinator,
-        entry,
-    )
 
-    await component_api.settings.async_read_settings()
+    await entry.runtime_data.component_api.settings.async_read_settings()
 
     sensors = []
 
-    sensors.append(MessageLastSensor(hass, coordinator, entry, component_api))
-    sensors.append(MessageScrollSensor(hass, coordinator, entry, component_api))
+    sensors.append(MessageLastSensor(hass, entry))
+    sensors.append(MessageScrollSensor(hass, entry))
 
     async_add_entities(sensors)
 
@@ -59,17 +51,15 @@ class MessageLastSensor(ComponentEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        coordinator: DataUpdateCoordinator,
-        entry: ConfigEntry,
-        component_api: ComponentApi,
+        entry: CommonConfigEntry,
     ) -> None:
         """Last Message sensor."""
 
-        super().__init__(coordinator, entry)
+        super().__init__(entry.runtime_data.coordinator, entry)
 
-        self.component_api = component_api
+        self.component_api: ComponentApi = entry.runtime_data.component_api
         self.hass: HomeAssistant = hass
-        self.entry: ConfigEntry = entry
+        self.entry: CommonConfigEntry = entry
 
         self._name = "Last message"
         self._unique_id = "last_message"
@@ -200,17 +190,15 @@ class MessageScrollSensor(ComponentEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        coordinator: DataUpdateCoordinator,
-        entry: ConfigEntry,
-        component_api: ComponentApi,
+        entry: CommonConfigEntry,
     ) -> None:
         """Scroll Message sensor."""
 
-        super().__init__(coordinator, entry)
+        super().__init__(entry.runtime_data.coordinator, entry)
 
         self.hass: HomeAssistant = hass
-        self.entry: ConfigEntry = entry
-        self.component_api = component_api
+        self.entry: CommonConfigEntry = entry
+        self.component_api: ComponentApi = entry.runtime_data.component_api
 
         self.refresh_type: RefreshType = RefreshType.NORMAL
 

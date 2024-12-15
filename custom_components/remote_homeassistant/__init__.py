@@ -1,51 +1,77 @@
-"""
-Connect two Home Assistant instances via the Websocket API.
+"""Connect two Home Assistant instances via the Websocket API.
 
 For more details about this component, please refer to the documentation at
 https://home-assistant.io/components/remote_homeassistant/
 """
+
 from __future__ import annotations
+
 import asyncio
-from typing import Optional
+from contextlib import suppress
 import copy
 import fnmatch
 import inspect
 import logging
 import re
-from contextlib import suppress
+from typing import Optional
 
 import aiohttp
 from aiohttp import ClientWebSocketResponse
-import homeassistant.components.websocket_api.auth as api
-import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.config import DATA_CUSTOMIZE
+
+from custom_components.remote_homeassistant.views import DiscoveryInfoView
+import homeassistant.components.websocket_api.auth as api
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
-from homeassistant.const import (CONF_ABOVE, CONF_ACCESS_TOKEN, CONF_BELOW,
-                                 CONF_DOMAINS, CONF_ENTITIES, CONF_ENTITY_ID,
-                                 CONF_EXCLUDE, CONF_HOST, CONF_INCLUDE,
-                                 CONF_PORT, CONF_UNIT_OF_MEASUREMENT,
-                                 CONF_VERIFY_SSL, EVENT_CALL_SERVICE,
-                                 EVENT_HOMEASSISTANT_STOP, EVENT_STATE_CHANGED,
-                                 SERVICE_RELOAD)
-from homeassistant.core import (Context, EventOrigin, HomeAssistant, callback,
-                                split_entity_id)
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
+from homeassistant.const import (
+    CONF_ABOVE,
+    CONF_ACCESS_TOKEN,
+    CONF_BELOW,
+    CONF_DOMAINS,
+    CONF_ENTITIES,
+    CONF_ENTITY_ID,
+    CONF_EXCLUDE,
+    CONF_HOST,
+    CONF_INCLUDE,
+    CONF_PORT,
+    CONF_UNIT_OF_MEASUREMENT,
+    CONF_VERIFY_SSL,
+    EVENT_CALL_SERVICE,
+    EVENT_HOMEASSISTANT_STOP,
+    EVENT_STATE_CHANGED,
+    SERVICE_RELOAD,
+)
+from homeassistant.core import (
+    Context,
+    EventOrigin,
+    HomeAssistant,
+    callback,
+    split_entity_id,
+)
+from homeassistant.core_config import DATA_CUSTOMIZE
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.setup import async_setup_component
 
-from custom_components.remote_homeassistant.views import DiscoveryInfoView
-
-from .const import (CONF_EXCLUDE_DOMAINS, CONF_EXCLUDE_ENTITIES,
-                    CONF_INCLUDE_DOMAINS, CONF_INCLUDE_ENTITIES,
-                    CONF_LOAD_COMPONENTS, CONF_OPTIONS, CONF_REMOTE_CONNECTION,
-                    CONF_SERVICE_PREFIX, CONF_SERVICES, CONF_UNSUB_LISTENER,
-                    DOMAIN, REMOTE_ID, DEFAULT_MAX_MSG_SIZE)
+from .const import (
+    CONF_EXCLUDE_DOMAINS,
+    CONF_EXCLUDE_ENTITIES,
+    CONF_INCLUDE_DOMAINS,
+    CONF_INCLUDE_ENTITIES,
+    CONF_LOAD_COMPONENTS,
+    CONF_OPTIONS,
+    CONF_REMOTE_CONNECTION,
+    CONF_SERVICE_PREFIX,
+    CONF_SERVICES,
+    CONF_UNSUB_LISTENER,
+    DEFAULT_MAX_MSG_SIZE,
+    DOMAIN,
+    REMOTE_ID,
+)
 from .proxy_services import ProxyServices
 from .rest_api import UnsupportedVersion, async_get_discovery_info
 
@@ -110,10 +136,11 @@ INSTANCES_SCHEMA = vol.Schema(
             ],
         ),
         vol.Optional(CONF_SUBSCRIBE_EVENTS): cv.ensure_list,
-        vol.Optional(CONF_ENTITY_PREFIX,
-            default=DEFAULT_ENTITY_PREFIX): cv.string,
-        vol.Optional(CONF_ENTITY_FRIENDLY_NAME_PREFIX,
-            default=DEFAULT_ENTITY_FRIENDLY_NAME_PREFIX): cv.string,
+        vol.Optional(CONF_ENTITY_PREFIX, default=DEFAULT_ENTITY_PREFIX): cv.string,
+        vol.Optional(
+            CONF_ENTITY_FRIENDLY_NAME_PREFIX,
+            default=DEFAULT_ENTITY_FRIENDLY_NAME_PREFIX,
+        ): cv.string,
         vol.Optional(CONF_LOAD_COMPONENTS): cv.ensure_list,
         vol.Required(CONF_SERVICE_PREFIX, default="remote_"): cv.string,
         vol.Optional(CONF_SERVICES): cv.ensure_list,
@@ -221,7 +248,8 @@ async def async_setup(hass: HomeAssistant.core.HomeAssistant, config: ConfigType
 
     hass.async_create_task(setup_remote_instance(hass))
 
-    async_register_admin_service(hass,
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_RELOAD,
         _handle_reload,
@@ -244,25 +272,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     if entry.unique_id == REMOTE_ID:
         hass.async_create_task(setup_remote_instance(hass))
         return True
-    else:
-        remote = RemoteConnection(hass, entry)
+    remote = RemoteConnection(hass, entry)
 
-        hass.data[DOMAIN][entry.entry_id] = {
-            CONF_REMOTE_CONNECTION: remote,
-            CONF_UNSUB_LISTENER: entry.add_update_listener(_update_listener),
-        }
+    hass.data[DOMAIN][entry.entry_id] = {
+        CONF_REMOTE_CONNECTION: remote,
+        CONF_UNSUB_LISTENER: entry.add_update_listener(_update_listener),
+    }
 
-        async def setup_components_and_platforms():
-            """Set up platforms and initiate connection."""
-            for domain in entry.options.get(CONF_LOAD_COMPONENTS, []):
-                hass.async_create_task(async_setup_component(hass, domain, {}))
+    async def setup_components_and_platforms():
+        """Set up platforms and initiate connection."""
+        for domain in entry.options.get(CONF_LOAD_COMPONENTS, []):
+            hass.async_create_task(async_setup_component(hass, domain, {}))
 
-            await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-            await remote.async_connect()
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        await remote.async_connect()
 
-        hass.async_create_task(setup_components_and_platforms())
+    hass.async_create_task(setup_components_and_platforms())
 
-        return True
+    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
@@ -332,12 +359,12 @@ class RemoteConnection:
         self._subscribe_events = set(
             config_entry.options.get(CONF_SUBSCRIBE_EVENTS, []) + INTERNALLY_USED_EVENTS
         )
-        self._entity_prefix = config_entry.options.get(
-            CONF_ENTITY_PREFIX, "")
+        self._entity_prefix = config_entry.options.get(CONF_ENTITY_PREFIX, "")
         self._entity_friendly_name_prefix = config_entry.options.get(
-            CONF_ENTITY_FRIENDLY_NAME_PREFIX, "")
+            CONF_ENTITY_FRIENDLY_NAME_PREFIX, ""
+        )
 
-        self._connection : Optional[ClientWebSocketResponse] = None
+        self._connection: ClientWebSocketResponse | None = None
         self._heartbeat_task = None
         self._is_stopping = False
         self._entities = set()
@@ -359,11 +386,14 @@ class RemoteConnection:
         return entity_id
 
     def _prefixed_entity_friendly_name(self, entity_friendly_name):
-        if (self._entity_friendly_name_prefix
+        if (
+            self._entity_friendly_name_prefix
             and entity_friendly_name.startswith(self._entity_friendly_name_prefix)
-            == False):
-            entity_friendly_name = (self._entity_friendly_name_prefix + 
-                                    entity_friendly_name)
+            == False
+        ):
+            entity_friendly_name = (
+                self._entity_friendly_name_prefix + entity_friendly_name
+            )
             return entity_friendly_name
         return entity_friendly_name
 
@@ -377,7 +407,7 @@ class RemoteConnection:
             url = baseURL + url
             return url
         return url
- 
+
     def set_connection_state(self, state):
         """Change current connection state."""
         signal = f"remote_homeassistant_{self._entry.unique_id}"
@@ -448,7 +478,9 @@ class RemoteConnection:
 
             try:
                 _LOGGER.info("Connecting to %s", url)
-                self._connection = await session.ws_connect(url, max_msg_size = self._max_msg_size)
+                self._connection = await session.ws_connect(
+                    url, max_msg_size=self._max_msg_size
+                )
             except aiohttp.client_exceptions.ClientError:
                 _LOGGER.error("Could not connect to %s, retry in 10 seconds...", url)
                 self.set_connection_state(STATE_RECONNECTING)
@@ -488,7 +520,7 @@ class RemoteConnection:
 
             try:
                 await asyncio.wait_for(event.wait(), HEARTBEAT_TIMEOUT)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 _LOGGER.warning("heartbeat failed")
 
                 # Schedule closing on event loop to avoid deadlock
@@ -565,7 +597,9 @@ class RemoteConnection:
             if data.type == aiohttp.WSMsgType.ERROR:
                 _LOGGER.error("websocket connection had an error")
                 if data.data.code == aiohttp.WSCloseCode.MESSAGE_TOO_BIG:
-                    _LOGGER.error(f"please consider increasing message size with `{CONF_MAX_MSG_SIZE}`")
+                    _LOGGER.error(
+                        f"please consider increasing message size with `{CONF_MAX_MSG_SIZE}`"
+                    )
                 break
 
             try:
@@ -585,7 +619,10 @@ class RemoteConnection:
 
             elif message["type"] == api.TYPE_AUTH_REQUIRED:
                 if self._access_token:
-                    json_data = {"type": api.TYPE_AUTH, "access_token": self._access_token}
+                    json_data = {
+                        "type": api.TYPE_AUTH,
+                        "access_token": self._access_token,
+                    }
                 else:
                     _LOGGER.error("Access token required, but not provided")
                     self.set_connection_state(STATE_AUTH_REQUIRED)
@@ -660,7 +697,7 @@ class RemoteConnection:
             data = {"id": _id, "type": event.event_type, **event_data}
 
             _LOGGER.debug("forward event: %s", data)
-            
+
             if self._connection is None:
                 _LOGGER.error("There is no remote connecion to send send data to")
                 return
@@ -718,12 +755,12 @@ class RemoteConnection:
 
             # Add local unique id
             domain, object_id = split_entity_id(entity_id)
-            attr['unique_id'] = f"{self._entry.unique_id[:16]}_{entity_id}"
+            attr["unique_id"] = f"{self._entry.unique_id[:16]}_{entity_id}"
             entity_registry = er.async_get(self._hass)
             entity_registry.async_get_or_create(
                 domain=domain,
-                platform='remote_homeassistant',
-                unique_id=attr['unique_id'],
+                platform="remote_homeassistant",
+                unique_id=attr["unique_id"],
                 suggested_object_id=object_id,
             )
 

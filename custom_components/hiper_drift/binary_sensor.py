@@ -3,29 +3,26 @@
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from . import CommonConfigEntry
 from .component_api import ComponentApi
-from .const import DOMAIN, TRANSLATION_KEY
+from .const import TRANSLATION_KEY
 from .entity import ComponentEntity
 
 
 # ------------------------------------------------------
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: CommonConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Entry for Hiper setup."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    component_api: ComponentApi = hass.data[DOMAIN][entry.entry_id]["component_api"]
 
     sensors = []
 
-    sensors.append(HiperBinarySensor(coordinator, entry, component_api))
+    sensors.append(HiperBinarySensor(entry))
 
     async_add_entities(sensors)
 
@@ -40,9 +37,7 @@ class HiperBinarySensor(ComponentEntity, BinarySensorEntity):
     # ------------------------------------------------------
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
-        entry: ConfigEntry,
-        component_api: ComponentApi,
+        entry: CommonConfigEntry,
     ) -> None:
         """Hiper binary sensor.
 
@@ -52,10 +47,10 @@ class HiperBinarySensor(ComponentEntity, BinarySensorEntity):
             component_api (ComponentApi): _description_
 
         """
-        super().__init__(coordinator, entry)
-        self.entry: ConfigEntry = entry
+        super().__init__(entry.runtime_data.coordinator, entry)
+        self.entry: CommonConfigEntry = entry
 
-        self.component_api = component_api
+        self.component_api: ComponentApi = entry.runtime_data.component_api
         # self.coordinator = coordinator
 
         self._name = "Status"

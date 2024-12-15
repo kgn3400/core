@@ -1,16 +1,16 @@
-"""Support for Hiper."""
+"""Trafikmeldinger sensor."""
 
 from __future__ import annotations
 
-from homeassistant.components.sensor import (  # SensorDeviceClass,; SensorEntityDescription,
-    SensorEntity,
-)
+from datetime import timedelta
+
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import CommonConfigEntry
 from .component_api import ComponentApi
-from .const import TRANSLATION_KEY
+from .const import DICT_REGION, DICT_TRANSPORT_TYPE, TRANSLATION_KEY
 from .entity import ComponentEntity
 
 
@@ -20,40 +20,43 @@ async def async_setup_entry(
     entry: CommonConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Entry for Hiper drift setup."""
+    """Entry for Trafikmeldinger setup."""
 
     sensors = []
 
-    sensors.append(HiperMsgSensor(entry))
+    sensors.append(TrafficLatestReportSensor(entry))
 
     async_add_entities(sensors)
 
 
 # ------------------------------------------------------
 # ------------------------------------------------------
-class HiperMsgSensor(ComponentEntity, SensorEntity):
-    """Sensor class Hiper."""
+class TrafficLatestReportSensor(ComponentEntity, SensorEntity):
+    """Sensor class Trafikmeldinger."""
 
     # ------------------------------------------------------
     def __init__(
         self,
         entry: CommonConfigEntry,
     ) -> None:
-        """Hiper msg sensor.
-
-        Args:
-            coordinator (DataUpdateCoordinator): _description_
-            entry (ConfigEntry): _description_
-            component_api (ComponentApi): _description_
-
-        """
+        """Trafikmeldinger sensor."""
         super().__init__(entry.runtime_data.coordinator, entry)
 
         self.component_api: ComponentApi = entry.runtime_data.component_api
-        self._name = "Message"
-        self._unique_id = "message"
+
+        self.coordinator.update_interval = timedelta(minutes=1)
+        self.coordinator.update_method = self.async_refresh
+
+        self._name = "Seneste"
+        self._unique_id = "seneste"
 
         self.translation_key = TRANSLATION_KEY
+
+    # ------------------------------------------------------
+    async def async_refresh(self) -> None:
+        """Refresh."""
+        if await self.component_api.async_refresh_trafic_reports():
+            self.async_write_ha_state()
 
     # ------------------------------------------------------
     @property
@@ -74,7 +77,10 @@ class HiperMsgSensor(ComponentEntity, SensorEntity):
             str | None: Native value
 
         """
-        return self.component_api.msg
+
+        if len(self.component_api.traffic_reports) == 0:
+            return None
+        return self.component_api.traffic_reports[0]["formated_text"]
 
     # ------------------------------------------------------
     @property
@@ -88,10 +94,16 @@ class HiperMsgSensor(ComponentEntity, SensorEntity):
 
         attr: dict = {}
 
-        attr["content"] = self.component_api.content if self.component_api.is_on else ""
-
-        if self.component_api.last_updated is not None:
-            attr["last_updated"] = self.component_api.last_updated
+        if len(self.component_api.traffic_reports) == 0:
+            return attr
+        attr["trafikmelding_md"] = self.component_api.traffic_reports[0]["formated_md"]
+        attr["region"] = DICT_REGION[self.component_api.traffic_reports[0]["region"]]
+        attr["transport_type"] = DICT_TRANSPORT_TYPE[
+            self.component_api.traffic_reports[0]["type"]
+        ]
+        attr["oprettet_tidspunkt"] = self.component_api.traffic_reports[0][
+            "createdTime"
+        ]
 
         return attr
 

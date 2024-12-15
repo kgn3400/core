@@ -65,6 +65,8 @@ class RemoteWebsocketConnection:
             Callable[[ConnectionStateType], None] | None
         ) = on_connection_state_changed
 
+        self.connection_state: ConnectionStateType = ConnectionStateType.STATE_INIT
+
         self._connection: ClientWebSocketResponse | None = None
         self._heartbeat_task = None
         self._is_stopping: bool = False
@@ -77,6 +79,8 @@ class RemoteWebsocketConnection:
     # ------------------------------------------------------
     async def async_connection_state_changed_event(self, state: ConnectionStateType):
         """Report connection state and Change."""
+
+        self.connection_state = state
 
         if self._on_connection_state_changed is not None:
             if inspect.iscoroutinefunction(self._on_connection_state_changed):
@@ -122,6 +126,9 @@ class RemoteWebsocketConnection:
 
         while True:
             try:
+                if self._is_stopping:
+                    return
+
                 LOGGER.info("Connecting to %s", url)
                 self._connection = await session.ws_connect(
                     url, max_msg_size=DEFAULT_MAX_MSG_SIZE
@@ -141,10 +148,10 @@ class RemoteWebsocketConnection:
         tmp_task = asyncio.ensure_future(self._async_recv())
         self._background_tasks.add(tmp_task)
 
-        self._heartbeat_task = self._hass.loop.create_task(self._saync_heartbeat_loop())
+        self._heartbeat_task = self._hass.loop.create_task(self._async_heartbeat_loop())
 
     # ------------------------------------------------------
-    async def _saync_heartbeat_loop(self):
+    async def _async_heartbeat_loop(self):
         """Send periodic heartbeats to remote instance."""
         while self._connection is not None and not self._connection.closed:
             await asyncio.sleep(HEARTBEAT_INTERVAL)
@@ -173,16 +180,12 @@ class RemoteWebsocketConnection:
 
     # ------------------------------------------------------
     async def async_stop(self):
-        """Close connection."""
+        """Stop connection."""
         self._is_stopping = True
+        await self._async_disconnected()
+
         if self._connection is not None:
             await self._connection.close()
-
-        if self._on_disconnected is not None:
-            if inspect.iscoroutinefunction(self._on_disconnected):
-                await self._on_disconnected()
-            else:
-                self._on_disconnected()
 
     # ------------------------------------------------------
     def _next_id(self):

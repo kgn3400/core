@@ -1,4 +1,4 @@
-"""The Hiper driftsstatus DK integration."""
+"""The Trafikmeldinger integration."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .component_api import ComponentApi
 from .const import DOMAIN, LOGGER
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
 # ------------------------------------------------------------------
@@ -32,7 +32,7 @@ type CommonConfigEntry = ConfigEntry[CommonData]
 
 # ------------------------------------------------------------------
 async def async_setup_entry(hass: HomeAssistant, entry: CommonConfigEntry) -> bool:
-    """Set up Hiper driftsstatus DK from a config entry."""
+    """Set up Trafikmeldinger from a config entry."""
 
     coordinator: DataUpdateCoordinator = DataUpdateCoordinator(
         hass,

@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 from typing import Any
 
 import voluptuous as vol
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     CONF_ACCESS_TOKEN,
     CONF_HOST,
     CONF_PORT,
     CONF_VERIFY_SSL,
+    MATCH_ALL,
     STATE_OFF,
     STATE_ON,
 )
@@ -33,6 +34,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
+from . import CommonConfigEntry
 from .const import (
     ATTR_MAIN_MONITOR_LAST_UPDATED,
     ATTR_MAIN_MONITOR_PAUSE,
@@ -64,9 +66,9 @@ from .const import (
     TRANSLATION_KEY_MAIN_MISSING_ENTITY,
 )
 from .entity import ComponentEntityMain
-from .rest_api import RestApi
+from .rest_api import BadResponse, RestApi
 from .shared import Shared
-from .websocket_api import RemoteWebsocketConnection
+from .websocket_api import ConnectionStateType, RemoteWebsocketConnection
 
 
 # ------------------------------------------------------
@@ -74,14 +76,16 @@ from .websocket_api import RemoteWebsocketConnection
 class MainAcitvityMonitorBinarySensor(ComponentEntityMain, BinarySensorEntity):
     """Binary sensor class for the main activity monitor."""
 
+    _unrecorded_attributes = frozenset({MATCH_ALL})
+
     # ------------------------------------------------------
     def __init__(
         self,
         hass: HomeAssistant,
-        entry: ConfigEntry,
+        entry: CommonConfigEntry,
     ) -> None:
         """Binary sensor."""
-        self.entry: ConfigEntry = entry
+        self.entry: CommonConfigEntry = entry
         self.hass = hass
 
         self.translation_key = TRANSLATION_KEY
@@ -92,16 +96,15 @@ class MainAcitvityMonitorBinarySensor(ComponentEntityMain, BinarySensorEntity):
         self.remote_last_updated: datetime = dt_util.now()
         self.remote_pause: bool = False
 
-        self.shared: Shared = hass.data[DOMAIN][entry.entry_id]["shared"]
+        self.shared: Shared = entry.runtime_data.shared
 
         self.remote_binary_sensor_name: str = entry.options.get(CONF_MONITOR_ENTITY)
-        self.main_on_binary_sensor_name: str = (
-            entry.options.get(CONF_MONITOR_ENTITY) + POSTFIX_MAIN_ON_ENTITY
-        )
-        self.remote_switch_pause_name: str = (
-            self.remote_binary_sensor_name.replace("binary_sensor", "switch")
-            + POSTFIX_PAUSE_SWITCH_ENTITY
-        )
+        self.main_on_binary_sensor_name: str = entry.options.get(
+            CONF_MONITOR_ENTITY
+        ) + POSTFIX_MAIN_ON_ENTITY.lower().replace(" ", "_")
+        self.remote_switch_pause_name: str = self.remote_binary_sensor_name.replace(
+            "binary_sensor", "switch"
+        ) + POSTFIX_PAUSE_SWITCH_ENTITY.lower().replace(" ", "_")
 
         self.main_state_on: bool = False
         self.main_pause: bool = False
@@ -109,6 +112,7 @@ class MainAcitvityMonitorBinarySensor(ComponentEntityMain, BinarySensorEntity):
         self.main_last_updated: datetime = dt_util.now()
 
         self.duration_wait_update: timedelta = timedelta()
+        self.websocket_subscribe_trigger_retry_count: int = 0
 
         if (duration := entry.options.get(CONF_DURATION_WAIT_UPDATE, None)) is not None:
             self.duration_wait_update = timedelta(**duration)
@@ -314,8 +318,7 @@ class MainAcitvityMonitorBinarySensor(ComponentEntityMain, BinarySensorEntity):
         self.async_on_remove(
             async_track_state_change_event(
                 self.hass,
-                self.entity_id.replace("binary_sensor", "switch")
-                + POSTFIX_PAUSE_SWITCH_ENTITY,
+                self.remote_switch_pause_name,
                 self.sensor_state_listener,
             )
         )
@@ -329,6 +332,91 @@ class MainAcitvityMonitorBinarySensor(ComponentEntityMain, BinarySensorEntity):
     # ------------------------------------------------------
     async def hass_started(self, _event: Event) -> None:
         """Hass started."""
+
+        if await self.async_restapi_service_get_remote_entity():
+            await self.websocket_connection.async_connect(
+                self.async_websocket_on_connected
+            )
+
+    # ------------------------------------------------------------------
+    async def async_websocket_service_call_response(self, message: dict) -> None:
+        """Handle event from host."""
+
+    # ------------------------------------------------------------------
+    async def async_websocket_update_main_on(self) -> None:
+        """Update the main on switch."""
+
+        LOGGER.debug("Updating main on switch")
+
+        if (
+            self.websocket_connection.connection_state
+            != ConnectionStateType.STATE_CONNECTED
+        ):
+            LOGGER.debug("Not connected, not updating main on switch")
+            return
+
+        await self.websocket_connection.async_call(
+            self.async_websocket_service_call_response,
+            "call_service",
+            domain=DOMAIN,
+            service=SERVICE_MAIN_ON_SWITCH,
+            service_data={
+                SERVICE_MAIN_ON_SWITCH: self.main_state_on,
+            },
+            target={
+                "entity_id": self.main_on_binary_sensor_name,
+            },
+        )
+
+    # ------------------------------------------------------------------
+    async def async_restapi_service_get_remote_entity(self) -> None:
+        """Restapi service get remote entity."""
+
+        MAX_RETRY_COUNT: int = 5
+
+        # Retry loop
+        for loop_count in range(MAX_RETRY_COUNT):
+            remote_entyties: list = (
+                await self.async_call_restapi_service_get_remote_entity()
+            )
+
+            if remote_entyties is not None:
+                break
+
+            # If this is the last retry, create an issue
+            if loop_count == (MAX_RETRY_COUNT - 1):
+                await self.async_create_issue_entity(
+                    self.remote_binary_sensor_name,
+                    TRANSLATION_KEY_MAIN_CONNECTION_ERROR,
+                )
+
+                return False
+
+            await asyncio.sleep(10)
+
+        for remote_entity in remote_entyties:
+            if remote_entity["entity_id"] == self.remote_binary_sensor_name:
+                self.remote_state_on = remote_entity["state"] == STATE_ON
+                self.remote_entity_id = remote_entity["entity_id"]
+                self.remote_friendly_name = remote_entity["name"]
+                self.remote_last_updated = dt_util.as_local(
+                    datetime.fromisoformat(remote_entity["last_updated"])
+                )
+
+                await self.coordinator.async_refresh()
+                return True
+
+        # No hit on entiy, create an issue
+        await self.async_create_issue_entity(
+            self.remote_binary_sensor_name,
+            TRANSLATION_KEY_MAIN_MISSING_ENTITY,
+        )
+
+        return False
+
+    # ------------------------------------------------------------------
+    async def async_call_restapi_service_get_remote_entity(self) -> list | None:
+        """Call restapi service get remote entity."""
 
         try:
             remote_entyties: list = (
@@ -345,64 +433,34 @@ class MainAcitvityMonitorBinarySensor(ComponentEntityMain, BinarySensorEntity):
                 )
             )["remotes"]
 
-            for remote_entity in remote_entyties:
-                if remote_entity["entity_id"] == self.remote_binary_sensor_name:
-                    self.remote_state_on = remote_entity["state"] == STATE_ON
-                    self.remote_entity_id = remote_entity["entity_id"]
-                    self.remote_friendly_name = remote_entity["name"]
-                    self.remote_last_updated = dt_util.as_local(
-                        datetime.fromisoformat(remote_entity["last_updated"])
-                    )
-                    await self.websocket_connection.async_connect(
-                        self.async_websocket_on_connected
-                    )
+        except BadResponse:
+            return None
 
-                    await self.coordinator.async_refresh()
-                    return
-
-            # No hit on entiy, create an issue
-            await self.async_create_issue_entity(
-                self.remote_binary_sensor_name,
-                TRANSLATION_KEY_MAIN_MISSING_ENTITY,
-            )
-
-        except Exception:  # noqa: BLE001
-            await self.async_create_issue_entity(
-                self.remote_binary_sensor_name,
-                TRANSLATION_KEY_MAIN_CONNECTION_ERROR,
-            )
-
-    # ------------------------------------------------------------------
-    async def async_websocket_service_call_response(self, message: dict) -> None:
-        """Handle event from host."""
-
-    # ------------------------------------------------------------------
-    async def async_websocket_update_main_on(self) -> None:
-        """Update the main on switch."""
-
-        LOGGER.debug("Updating main on switch")
-
-        await self.websocket_connection.async_call(
-            self.async_websocket_service_call_response,
-            "call_service",
-            domain=DOMAIN,
-            service=SERVICE_MAIN_ON_SWITCH,
-            service_data={
-                SERVICE_MAIN_ON_SWITCH: self.main_state_on,
-            },
-            target={
-                "entity_id": self.main_on_binary_sensor_name,
-            },
-        )
+        return remote_entyties
 
     # ------------------------------------------------------------------
     async def async_websocket_on_connected(self) -> None:
         """Host connection established."""
 
+        LOGGER.debug("Host connection established, get remote entities via restapi")
+
+        await self.async_restapi_service_get_remote_entity()
+
         LOGGER.debug("Host connection established, subscribing to trigger")
 
+        self.websocket_subscribe_trigger_retry_count = 0
+        await self.async_websocket_subscribe_trigger_event()
+
+        await self.async_websocket_update_main_on()
+
+    # ------------------------------------------------------------------
+    async def async_websocket_subscribe_trigger_event(self) -> None:
+        """Subscribe to trigger event."""
+
+        await asyncio.sleep(10)
+
         await self.websocket_connection.async_call(
-            self.async_websocket_handle_event_message,
+            self.async_websocket_handle_trigger_event_message,
             "subscribe_trigger",
             trigger={
                 "platform": "state",
@@ -413,16 +471,22 @@ class MainAcitvityMonitorBinarySensor(ComponentEntityMain, BinarySensorEntity):
             },
         )
 
-        await self.async_websocket_update_main_on()
-
     # ------------------------------------------------------------------
-    async def async_websocket_handle_event_message(self, message: dict) -> None:
+    async def async_websocket_handle_trigger_event_message(self, message: dict) -> None:
         """Handle event from host."""
 
         match message["type"]:
             case "result":
                 if message["success"] is not True:
-                    LOGGER.error("Error on subcribe_trigger")
+                    self.websocket_subscribe_trigger_retry_count += 1
+
+                    if self.websocket_subscribe_trigger_retry_count < 5:
+                        LOGGER.error("Error on subcribe_trigger, wait and retry")
+                        await self.async_websocket_subscribe_trigger_event()
+                    else:
+                        LOGGER.error(
+                            "To many failed attemts to subcribe_trigger, aborting"
+                        )
 
             case "event":
                 to_state: dict = message["event"]["variables"]["trigger"]["to_state"]
@@ -435,7 +499,8 @@ class MainAcitvityMonitorBinarySensor(ComponentEntityMain, BinarySensorEntity):
 
     # ------------------------------------------------------------------
     async def async_websocket_handle_trigger_binary_sensor(
-        self, to_state: dict
+        self,
+        to_state: dict,
     ) -> None:
         """Handle trigger binary sensor."""
 

@@ -7,21 +7,15 @@ from datetime import timedelta
 from homeassistant.components.sensor import (  # SensorDeviceClass,; SensorEntityDescription,
     SensorEntity,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers import start
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .component_api import ComponentApi, LottoTypes
+from . import CommonConfigEntry
+from .component_api import LottoTypes
 from .const import (
-    CONF_EURO_JACKPOT,
     CONF_LISTEN_TO_TIMER_TRIGGER,
-    CONF_LOTTO,
     CONF_RESTART_TIMER,
-    CONF_VIKING_LOTTO,
-    DOMAIN,
     TRANSLATION_KEY,
     RefreshType,
 )
@@ -32,48 +26,26 @@ from .timer_trigger import TimerTrigger
 # ------------------------------------------------------
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: CommonConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Sensor setup."""
-    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
-
-    component_api: ComponentApi = ComponentApi(
-        hass,
-        coordinator,
-        async_get_clientsession(hass),
-        entry.options[CONF_EURO_JACKPOT],
-        entry.options[CONF_LOTTO],
-        entry.options[CONF_VIKING_LOTTO],
-    )
 
     sensors = []
 
     # Euro jackpot
-    if component_api.get_euro_jackpot:
-        sensors.append(
-            LottoSensor(
-                hass, coordinator, entry, component_api, LottoTypes.EURO_JACKPOT
-            )
-        )
+    if entry.runtime_data.component_api.get_euro_jackpot:
+        sensors.append(LottoSensor(hass, entry, LottoTypes.EURO_JACKPOT))
 
     # Lotto
-    if component_api.get_lotto:
-        sensors.append(
-            LottoSensor(hass, coordinator, entry, component_api, LottoTypes.LOTTO)
-        )
+    if entry.runtime_data.component_api.get_lotto:
+        sensors.append(LottoSensor(hass, entry, LottoTypes.LOTTO))
 
     # Viking Lotto
-    if component_api.get_viking_lotto:
-        sensors.append(
-            LottoSensor(
-                hass, coordinator, entry, component_api, LottoTypes.VIKING_LOTTO
-            )
-        )
+    if entry.runtime_data.component_api.get_viking_lotto:
+        sensors.append(LottoSensor(hass, entry, LottoTypes.VIKING_LOTTO))
 
-    sensors.append(LottoScrollSensor(hass, coordinator, entry, component_api))
+    sensors.append(LottoScrollSensor(hass, entry))
 
     async_add_entities(sensors)
 
@@ -87,19 +59,17 @@ class LottoSensor(ComponentEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        coordinator: DataUpdateCoordinator,
-        entry: ConfigEntry,
-        component_api: ComponentApi,
+        entry: CommonConfigEntry,
         lotto_type: LottoTypes,
     ) -> None:
         """Lotto sensor."""
 
-        super().__init__(coordinator, entry)
+        super().__init__(entry.runtime_data.coordinator, entry)
 
         self.hass: HomeAssistant = hass
-        self.entry: ConfigEntry = entry
-        self.component_api = component_api
-        self.coordinator = coordinator
+        self.entry: CommonConfigEntry = entry
+        self.component_api = entry.runtime_data.component_api
+        self.coordinator = entry.runtime_data.coordinator
         self.lotto_type = lotto_type
 
         self.translation_key = TRANSLATION_KEY
@@ -214,17 +184,15 @@ class LottoScrollSensor(ComponentEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        coordinator: DataUpdateCoordinator,
-        entry: ConfigEntry,
-        component_api: ComponentApi,
+        entry: CommonConfigEntry,
     ) -> None:
         """Lotto scroll sensor."""
-        super().__init__(coordinator, entry)
+        super().__init__(entry.runtime_data.coordinator, entry)
 
         self.hass: HomeAssistant = hass
-        self.entry: ConfigEntry = entry
-        self.component_api = component_api
-        self.coordinator = coordinator
+        self.entry: CommonConfigEntry = entry
+        self.component_api = entry.runtime_data.component_api
+        self.coordinator = entry.runtime_data.coordinator
         self._name = "Lotto puljer"
         self._unique_id = "lotto_puljer"
         self.refresh_type: RefreshType = RefreshType.NORMAL
@@ -260,17 +228,6 @@ class LottoScrollSensor(ComponentEntity, SensorEntity):
 
         """
         return self._name
-
-    # ------------------------------------------------------
-    # @property
-    # def icon(self) -> str:
-    #     """Icon.
-
-    #     Returns:
-    #         str: Icon
-
-    #     """
-    #     return "mdi:cash-multiple"
 
     # ------------------------------------------------------
     @property

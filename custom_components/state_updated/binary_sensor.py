@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -23,9 +23,6 @@ from homeassistant.helpers import (
     issue_registry as ir,
     start,
 )
-
-# entity_registry as er,
-# icon,
 from homeassistant.helpers.device import async_device_info_to_link_from_device_id
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
@@ -34,6 +31,7 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from . import CommonConfigEntry
 from .component_api import ComponentApi
 from .const import (
     CONF_LAST_UPDATED,
@@ -50,7 +48,7 @@ from .const import (
 # ------------------------------------------------------
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: CommonConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Entry for State updated setup."""
@@ -69,26 +67,18 @@ class StateUpdatedBinarySensor(BinarySensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        entry: ConfigEntry,
+        entry: CommonConfigEntry,
     ) -> None:
         """Binary sensor."""
 
-        self.entry: ConfigEntry = entry
+        self.entry: CommonConfigEntry = entry
         self.hass = hass
 
         self.translation_key = TRANSLATION_KEY
 
-        self.component_api: ComponentApi = hass.data[DOMAIN][entry.entry_id][
-            "component_api"
-        ]
+        self.component_api: ComponentApi = entry.runtime_data.component_api
 
-        self.coordinator: DataUpdateCoordinator = DataUpdateCoordinator(
-            self.hass,
-            LOGGER,
-            name=DOMAIN,
-            update_interval=timedelta(minutes=1),
-            update_method=self.component_api.async_update,
-        )
+        self.coordinator: DataUpdateCoordinator = entry.runtime_data.coordinator
         self.component_api.coordinator = self.coordinator
 
         platform = entity_platform.async_get_current_platform()
