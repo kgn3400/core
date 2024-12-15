@@ -1,9 +1,7 @@
 {
   "domain": "remote_activity_monitor",
   "name": "Remote activity monitor",
-  "codeowners": [
-    "@kgn3400"
-  ],
+  "codeowners": ["@kgn3400"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/kgn3400/remote_activity_monitor",
