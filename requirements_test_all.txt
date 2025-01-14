@@ -258,7 +258,7 @@ aiohttp_sse==2.2.0
 aiohue==4.7.3
 
 # homeassistant.components.imap
-aioimaplib==1.1.0
+aioimaplib==2.0.0
 
 # homeassistant.components.apache_kafka
 aiokafka==0.10.0
@@ -935,7 +935,7 @@ ha-iotawattpy==0.1.2
 ha-philipsjs==3.2.2
 
 # homeassistant.components.habitica
-habiticalib==0.3.2
+habiticalib==0.3.3
 
 # homeassistant.components.bluetooth
 habluetooth==3.8.0
@@ -2068,6 +2068,9 @@ pyzerproc==0.4.8
 # homeassistant.components.qbittorrent
 qbittorrent-api==2024.2.59
 
+# homeassistant.components.qbus
+qbusmqttapi==1.2.3
+
 # homeassistant.components.qingping
 qingping-ble==0.10.0
 
@@ -2193,7 +2196,7 @@ slackclient==2.5.0
 smart-meter-texas==0.5.5
 
 # homeassistant.components.smhi
-smhi-pkg==1.0.18
+smhi-pkg==1.0.19
 
 # homeassistant.components.snapcast
 snapcast==2.3.6
