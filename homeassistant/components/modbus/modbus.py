@@ -263,6 +263,7 @@ class ModbusHub:
         self._config_delay = client_config[CONF_DELAY]
         self._pb_request: dict[str, RunEntry] = {}
         self._connect_task: asyncio.Task
+        self._last_log_error: str = ""
         self._pb_class = {
             SERIAL: AsyncModbusSerialClient,
             TCP: AsyncModbusTcpClient,
@@ -303,13 +304,12 @@ class ModbusHub:
         else:
             self._msg_wait = 0
 
-    def _log_error(self, text: str, error_state: bool = True) -> None:
+    def _log_error(self, text: str) -> None:
+        if text == self._last_log_error:
+            return
+        self._last_log_error = text
         log_text = f"Pymodbus: {self.name}: {text}"
-        if self._in_error:
-            _LOGGER.debug(log_text)
-        else:
-            _LOGGER.error(log_text)
-            self._in_error = error_state
+        _LOGGER.error(log_text)
 
     async def async_pb_connect(self) -> None:
         """Connect to device, async."""
@@ -317,18 +317,25 @@ class ModbusHub:
             try:
                 await self._client.connect()  # type: ignore[union-attr]
             except ModbusException as exception_error:
-                err = f"{self.name} connect failed, retry in pymodbus  ({exception_error!s})"
-                self._log_error(err, error_state=False)
+                self._log_error(
+                    f"{self.name} connect failed, please check your configuration ({exception_error!s})"
+                )
                 return
             message = f"modbus {self.name} communication open"
             _LOGGER.info(message)
+
+        # Start counting down to allow modbus requests.
+        if self._config_delay:
+            self._async_cancel_listener = async_call_later(
+                self.hass, self._config_delay, self.async_end_delay
+            )
 
     async def async_setup(self) -> bool:
         """Set up pymodbus client."""
         try:
             self._client = self._pb_class[self._config_type](**self._pb_params)
         except ModbusException as exception_error:
-            self._log_error(str(exception_error), error_state=False)
+            self._log_error(str(exception_error))
             return False
 
         for entry in PB_CALL:
@@ -340,12 +347,6 @@ class ModbusHub:
         self._connect_task = self.hass.async_create_background_task(
             self.async_pb_connect(), "modbus-connect"
         )
-
-        # Start counting down to allow modbus requests.
-        if self._config_delay:
-            self._async_cancel_listener = async_call_later(
-                self.hass, self._config_delay, self.async_end_delay
-            )
         return True
 
     @callback
