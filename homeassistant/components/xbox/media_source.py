@@ -209,7 +209,7 @@ class XboxSource(MediaSource):
             if images is not None:
                 try:
                     return PlayMedia(
-                        images[int(identifier.media_id)].url,
+                        to_https(images[int(identifier.media_id)].url),
                         MIME_TYPE_MAP[ATTR_SCREENSHOTS],
                     )
                 except (ValueError, IndexError):
@@ -630,7 +630,7 @@ class XboxSource(MediaSource):
                     title=image.type,
                     can_play=True,
                     can_expand=False,
-                    thumbnail=image.url,
+                    thumbnail=to_https(image.url),
                 )
                 for image in game.images
             ]
