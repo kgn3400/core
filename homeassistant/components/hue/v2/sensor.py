@@ -52,20 +52,24 @@ def _resource_valid(
 ) -> bool:
     """Return True if the resource is valid."""
     if isinstance(resource, GroupedLightLevel):
-        # filter out GroupedLightLevel sensors that are not linked to a valid group/parent
+        # filter out GroupedLightLevel sensors that are not linked
+        # to a valid group/parent
         if resource.owner.rtype not in (
             ResourceTypes.ROOM,
             ResourceTypes.ZONE,
             ResourceTypes.SERVICE_GROUP,
         ):
             return False
-        # guard against GroupedLightLevel without parent (should not happen, but just in case)
+        # guard against GroupedLightLevel without parent
+        # (should not happen, but just in case)
         parent_id = resource.owner.rid
         parent = api.groups.get(parent_id) or api.config.get(parent_id)
         if not parent:
             return False
-        # filter out GroupedLightLevel sensors that have only one member, because Hue creates one
-        # default grouped LightLevel sensor per zone/room, which is not useful to expose in HA
+        # filter out GroupedLightLevel sensors that have only one
+        # member, because Hue creates one default grouped
+        # LightLevel sensor per zone/room, which is not useful
+        # to expose in HA
         if len(parent.children) <= 1:
             return False
     # default/other checks can go here (none for now)
@@ -162,8 +166,10 @@ class HueLightLevelSensor(HueSensorBase):
     )
 
     @property
-    def native_value(self) -> int:
+    def native_value(self) -> int | None:
         """Return the value reported by the sensor."""
+        if self.resource.light.value is None:
+            return None
         # Light level in 10000 log10 (lux) +1 measured by sensor. Logarithm
         # scale used because the human eye adjusts to light levels and small
         # changes at low lux levels are more noticeable than at high lux
@@ -180,7 +186,7 @@ class HueLightLevelSensor(HueSensorBase):
 
 # pylint: disable-next=home-assistant-enforce-class-module
 class HueGroupedLightLevelSensor(HueLightLevelSensor):
-    """Representation of a LightLevel (illuminance) sensor from a Hue GroupedLightLevel resource."""
+    """Representation of a LightLevel sensor from a Hue GroupedLightLevel resource."""
 
     controller: GroupedLightLevelController
     resource: GroupedLightLevel

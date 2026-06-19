@@ -134,6 +134,11 @@ class PowerViewShadeBase(ShadeEntity, CoverEntity):
         return self._is_hard_wired
 
     @property
+    def available(self) -> bool:
+        """Return True if shade position data is available."""
+        return super().available and self.positions.primary is not None
+
+    @property
     def extra_state_attributes(self) -> dict[str, str]:
         """Return the state attributes."""
         return {STATE_ATTRIBUTE_ROOM_NAME: self._room_name}
@@ -531,11 +536,17 @@ class PowerViewShadeTiltOnly(PowerViewShadeWithTiltBase):
         """Return if the cover is closed."""
         return self.positions.tilt <= CLOSED_POSITION
 
+    @property
+    def available(self) -> bool:
+        """Return True if shade position data is available."""
+        return super().available and self.positions.tilt is not None
+
 
 class PowerViewShadeTopDown(PowerViewShadeBase):
     """Representation of a shade that lowers from the roof to the floor.
 
-    These shades are inverted where MAX_POSITION equates to closed and MIN_POSITION is open
+    These shades are inverted where MAX_POSITION equates to closed
+    and MIN_POSITION is open
     API Class: ShadeTopDown
 
     Type 6 - Top Down
@@ -911,7 +922,8 @@ class PowerViewShadeDualOverlappedCombinedTilt(
     Sibling Class: PowerViewShadeDualOverlappedFront, PowerViewShadeDualOverlappedRear
     API Class: ShadeDualOverlappedTilt90 + ShadeDualOverlappedTilt180
 
-    Type 9 - Duolite with 90° Tilt (front bottom up shade that also tilts plus a rear opaque (non-tilting) shade)
+    Type 9 - Duolite with 90° Tilt (front bottom up shade that also
+    tilts plus a rear opaque (non-tilting) shade)
     Type 10 - Duolite with 180° Tilt
     """
 
