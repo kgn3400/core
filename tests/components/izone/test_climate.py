@@ -5,7 +5,13 @@ from unittest.mock import AsyncMock, Mock, PropertyMock
 
 from freezegun.api import FrozenDateTimeFactory
 from pizone import Controller, ControllerCommandError, Zone
+import probatio
 import pytest
+from pytest_homeassistant.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+    snapshot_platform,
+)
 from syrupy.assertion import SnapshotAssertion
 
 from homeassistant.components.climate import (
@@ -21,8 +27,12 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.components.izone.const import DOMAIN
+from homeassistant.components.izone.const import ATTR_AIRFLOW, DOMAIN
 from homeassistant.components.izone.coordinator import UPDATE_INTERVAL
+from homeassistant.components.izone.services import (
+    IZONE_SERVICE_AIRFLOW_MAX,
+    IZONE_SERVICE_AIRFLOW_MIN,
+)
 from homeassistant.const import ATTR_ENTITY_ID, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -31,8 +41,6 @@ import homeassistant.helpers.entity_registry as er
 
 from . import setup_integration
 from .conftest import create_mock_controller, create_mock_zone
-
-from tests.common import MockConfigEntry, async_fire_time_changed, snapshot_platform
 
 CONTROLLER_ENTITY = "climate.izone_controller_000000001"
 ZONE_ENTITY = "climate.living_room"
@@ -623,3 +631,32 @@ async def test_command_connection_error_recovers_on_coordinator_refresh(
 
     assert hass.states.get(CONTROLLER_ENTITY).state == HVACMode.COOL
     assert hass.states.get(ZONE_ENTITY).state == HVACMode.HEAT_COOL
+
+
+@pytest.mark.usefixtures("init_integration")
+@pytest.mark.parametrize(
+    ("service", "airflow"),
+    [
+        pytest.param(IZONE_SERVICE_AIRFLOW_MIN, 41, id="min-int"),
+        pytest.param(IZONE_SERVICE_AIRFLOW_MAX, 41, id="max-int"),
+        pytest.param(IZONE_SERVICE_AIRFLOW_MIN, 40.9, id="min-float"),
+        pytest.param(IZONE_SERVICE_AIRFLOW_MAX, 40.9, id="max-float"),
+    ],
+)
+async def test_airflow_rejects_non_multiples_of_five(
+    hass: HomeAssistant,
+    mock_zones: list[Mock],
+    service: str,
+    airflow: float,
+) -> None:
+    """Airflow services reject values that are not multiples of 5."""
+    with pytest.raises(probatio.Invalid):
+        await hass.services.async_call(
+            DOMAIN,
+            service,
+            {ATTR_ENTITY_ID: ZONE_ENTITY, ATTR_AIRFLOW: airflow},
+            blocking=True,
+        )
+
+    mock_zones[0].set_airflow_min.assert_not_called()
+    mock_zones[0].set_airflow_max.assert_not_called()
